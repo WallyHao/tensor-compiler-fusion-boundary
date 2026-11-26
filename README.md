@@ -81,6 +81,51 @@ docs/            接口、产物口径、3090 手册
 
 RTX 4060 Laptop 上的冒烟仅用于验证流程。正式 run 的 GPU 型号、驱动和设备 UUID 写入 `run.json`。
 
+## 审阅发现（待处理）：当前 `split` 无法产生负对照，“边界”未被观测
+
+本节记录 2026-11-26 的审阅结论。它不改变 `runs/` 下的原始数据，但直接影响论文能主张的结论。
+
+### 现象
+
+- direct 标签在 176 个 case-mode（3090 72 + 4090 72 + H800 12 + 3090 补采 20）中为 **0 个 split**：3090 68 fuse / 3 equivalent / 1 uncertain，4090 68 / 4 / 0，H800 12 / 0 / 0，补采 20 / 0 / 0。来源：`analysis/out/paper-sources/3090/analysis/out/full-meas-3090-20261126T041621Z/report.md`、`analysis/out/4090-transfer-20261126/analysis-4090/report.md`、`analysis/out/paper-sources/scoring/3090-followup.json`。
+- `default_maps_to=fused` 72/72。68 个“明确”标签全为 fuse，导致 `always_fused`、`default_inductor`、两项与三项模型的 mean regret 都是 **0 µs**，`byte_threshold` 也只有 0.37 µs。标签退化，模型比较没有区分力。
+- 4090 编译语料的 144 个 split kernel 中 `n_spills=0`、`n_regs` 8–28、occupancy 只有 1.0 和 0.5 两档。语料从未接近寄存器/占用率悬崖，融合没有可损失的东西。
+
+### 原因
+
+`split` 的实现是同一张图 + lowering `realize(t)` + 调度器否决跨边合并（`src/fusionboundary/strategies.py` 的 `split_context`）。Producer kernel 的 config 不变。以本地归档的 `R1-m4096-k8192-f32-contig-t` 为例（`runs/corpus-4060-local/artifacts/.../kernels.json`）：
+
+- split 的 reduction kernel：`XBLOCK=1, RBLOCK=2048, num_warps=16, n_regs=28, n_spills=0`
+- fused 的 reduction kernel：**完全相同**，只是名字多了 `relu`
+- split 只多一个 `triton_poi_fused_relu_1` 和 `t` 的写读
+
+因此 `split` = `fused` 的同一个 producer kernel + 中间物化 + 一次额外 launch。只要融合不让这个 kernel 溢出或掉 occupancy，split 就严格更慢。0/176 不是采样不足，而是候选被定义成了严格劣于 fused 的版本。
+
+### 实测：设想的负对照不成立
+
+在 4060 Laptop（torch 2.6.0+cu124、triton 3.2.0）上直接用 `split_context` 编译、按 200 次稳态调用计时（µs，`B = split − fused`）：
+
+| case | fused / default | guarded split | B |
+|---|---:|---:|---:|
+| R1 4096×8192 f32 | 616.9 | 618.2 | +1.3 |
+| R1 256×512 f32 | 12.83 | 15.82 | +2.99 |
+| R1 16×8192 f32 | 12.84 | 15.89 | +3.05 |
+| expand 16×8192 f32 | 13.22 | 17.38 | +4.15 |
+| expand 256×8192 f32 | 16.90 | 24.90 | +8.00 |
+| expand 256×32768 f16 | 64.43 | 77.35 | +12.92 |
+| expand 4096×8192 f32 | 1224.0 | 1688.0 | +464 |
+
+其中 expand 指 `t = x.sum(dim=1); y = t[:, None] * x`，即“消费者并行度高于生产者”的候选；四组形状全部是融合更快。R1 4096×8192 的 +1.3 µs 与 3090/4090 的 ~1.3–1.4 µs 一致。
+
+作为对照：把 producer/consumer **分开编译**（各自选 schedule）时，R1 4096×8192 在 4060 上是 split 540.6 µs、fused 616.9 µs，split 反而快 12%。但这不是当前 `split` 的定义，不能直接记为 split 标签；它说明真正值得测的替代是“独立调度”，并且必须在 3090 上复测。
+
+### 待办（二选一，先预筛再计时）
+
+1. **新增 `split_independent` 候选**：producer/consumer 各自编译、各自选 tile/autotune，保持同一 Inductor config；现有同图 veto 保留为 `split_inplace` 诊断。负对照必须在 3090 上 `B < 0`、95% CI 排除 0、两次独立复跑同号。
+2. **保留同图 split，构造 register/occupancy cliff**：让 fused kernel 出现 `n_spills > 0` 或 occupancy 低于 split 的 producer。例如 16–32 个串联 elementwise / 多临时量的 epilogue。资源没有差异就不进入 label 表。
+
+若两条都试过仍无 split，论文应改为“融合占优区 + 负结果”，并删除边界、模型排名与跨卡迁移的主张（此时迁移预测的是常数）。继续增加 N/M/K/dtype/transpose 不会改变结论：3090 补采已是 20/20 fuse。
+
 ## RTX 3090 实测结果（2026-11-26）
 
 主机 GPU 为 **NVIDIA GeForce RTX 3090**（sm_86、82 SM、6 MiB L2、24 GB，UUID
