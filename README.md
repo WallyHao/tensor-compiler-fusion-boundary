@@ -1,4 +1,6 @@
-# Fusion Boundaries · phase 1 (RTX 3090)
+# Fusion Boundaries
+
+RTX 3090 的源实验以及 RTX 4090、H800 PCIe 的迁移验证已完成。目前的 RTX 3090 补采安排见[执行计划](plan/README.md)，既有数据见[实验归档](data/README.md)。
 
 在固定版本的 TorchInductor 上，对**同一条合法切边** `t`（单消费者生产者→消费者边）生成
 三种编译产物，并交付可复核的代码级证据与数值校验：
@@ -10,8 +12,7 @@
 | `fused` | 允许跨边合并（与 default 同路径，独立缓存） | 单个 kernel 同时含两侧算子，`t` 无物化 |
 
 语料 72 case（P1/P2 各 12，R1/R2 各 24）；试点 `P1-n65536-f32-contig-t` 与
-`R1-m256-k512-f32-contig-t`。研究设计与工作单见 `docs/research-plan.md`、
-`plan/phase1-3090/`。
+`R1-m256-k512-f32-contig-t`。[完整项目计划](docs/research-plan.md) · [第一阶段工作单](plan/phase1-3090/README.md)
 
 ## 快速开始
 

@@ -1,4 +1,6 @@
-# RTX 3090 phase‑1 原始数据归档
+# GPU 实验原始数据归档
+
+## RTX 3090 第一阶段
 
 本目录存放 2026‑11‑26 在 **NVIDIA GeForce RTX 3090** 主机上跑完 phase‑1 全部流程后的
 原始数据快照。仓库根目录的 `runs/` 与 `analysis/out/` 被 `.gitignore` 排除（体积大、且
@@ -13,9 +15,9 @@ fb-3090-phase1-runs-20261126.tar.zst.sha256
 ## 校验与解包
 
 ```bash
-sha256sum -c fb-3090-phase1-runs-20261126.tar.zst.sha256
-zstd -dc fb-3090-phase1-runs-20261126.tar.zst | tar -xf - -C <target-dir>
-# 解包后：<target-dir>/runs/... 与 <target-dir>/analysis/out/...
+mkdir -p /tmp/fb-evidence/3090
+sha256sum -c data/fb-3090-phase1-runs-20261126.tar.zst.sha256
+tar -I zstd -xf data/fb-3090-phase1-runs-20261126.tar.zst -C /tmp/fb-evidence/3090
 ```
 
 包含 `runs/`（`env-3090-…`、`pilot-3090-…`、`corpus-3090-…`、`diag-3090-…`、
@@ -47,3 +49,46 @@ zstd -dc fb-3090-phase1-runs-20261126.tar.zst | tar -xf - -C <target-dir>
 
 流程与判定口径见 `docs/status-phase1-compile.md`、`docs/measurement-status.md`、
 `docs/measurement-runbook.md`。
+
+## 跨设备验证归档
+
+| 设备 | 归档 | 正式 run | 覆盖 |
+|---|---|---|---|
+| RTX 4090 | `fb-rtx4090-transfer-20261126.tar.gz` | `runs/full-meas-4090` | 原 72 配置，4,320 个有效配对 block |
+| H800 PCIe | `fb-h800-transfer-20261126.tar.gz` | `runs/measure-h800` | 预选 12 配置（包内 `cases.txt`），720 个有效配对 block |
+
+两包包含环境锁、候选与正确性证据、校准、split-only 原始计时和冻结预测、配对原始数据、严格审计结果及实际使用的 `validate_transfer.py`。编译缓存可根据记录重建。两个正式 run 的严格审计均为 0 error / 0 warning。运行设备与软件栈差异见[完整项目计划](../docs/research-plan.md#阶段责任与交付)。
+
+从仓库根目录开始，并先按上面的步骤解包 3090 源数据。
+
+```bash
+mkdir -p /tmp/fb-evidence/{4090,h800}
+sha256sum -c data/fb-rtx4090-transfer-20261126.tar.gz.sha256 \
+  data/fb-h800-transfer-20261126.tar.gz.sha256
+tar -xzf data/fb-rtx4090-transfer-20261126.tar.gz -C /tmp/fb-evidence/4090
+tar -xzf data/fb-h800-transfer-20261126.tar.gz -C /tmp/fb-evidence/h800
+(cd /tmp/fb-evidence/4090/runs/full-meas-4090 && sha256sum -c SHA256SUMS)
+(cd /tmp/fb-evidence/h800/runs/measure-h800 && sha256sum -c SHA256SUMS)
+```
+
+可用 Python 3.12 重算源模型在两个目标设备上的覆盖率、符号准确率、regret 和标签迁移。命令读取冻结预测和配对结果，无需 GPU。
+
+```bash
+evidence=/tmp/fb-evidence
+source_results="$evidence/3090/analysis/out/full-meas-3090-20261126T041621Z/results.jsonl"
+export PYTHONPATH="$PWD:$PWD/src"
+python scripts/validate_transfer.py compare \
+  --predictions "$evidence/4090/transfer-prediction/predictions.json" \
+  --source-results "$source_results" \
+  --target-results "$evidence/4090/analysis-4090/results.jsonl" \
+  --target-run "$evidence/4090/runs/full-meas-4090" \
+  --output "$evidence/4090/transfer-comparison.json"
+python scripts/validate_transfer.py compare \
+  --predictions "$evidence/h800/transfer-prediction/predictions.json" \
+  --source-results "$source_results" \
+  --target-results "$evidence/h800/analysis-h800/results.jsonl" \
+  --target-run "$evidence/h800/runs/measure-h800" \
+  --output "$evidence/h800/transfer-comparison.json"
+```
+
+两次比较分别包含 144 和 24 个共同 case/mode。H800 输出的 `source_only` 列出其余 120 个仅在源设备覆盖的 case/mode。两个目标设备的预测冻结 UTC 均早于对应的正式配对起始 UTC。预期 direct 明确标签数分别为 68 和 12，两项、三项与默认策略均全部选对。replay 中，RTX 4090 的三项模型选对 25/27，两项与默认策略各选对 27/27。H800 子集上三种方法均选对 7/7。
