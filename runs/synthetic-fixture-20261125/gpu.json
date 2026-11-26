@@ -1,0 +1,6 @@
+{
+  "gpu_name": "none (fixture)",
+  "gpu_uuid": "SYNTHETIC-NO-GPU",
+  "note": "This run exists only to validate the analysis entrypoint.",
+  "synthetic": true
+}

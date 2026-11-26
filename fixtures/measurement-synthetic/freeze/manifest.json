@@ -1,0 +1,25 @@
+{
+  "run_id": "measurement-synthetic",
+  "purpose": "synthetic",
+  "synthetic": true,
+  "protocol_hash": "0866e23d901da89e7505f88f9711ee836260de0784702b061cd7e98a2c08a6a8",
+  "corpus_hash": "0781a73cd1c7a1d64ebbfaca736cb0799da0bff56179a824a7056a619a3dfa80",
+  "catalog_hash": null,
+  "environment_lock_sha256": null,
+  "calibration_fit_sha256": "480caa36bc5569e814fae70a99cd2ed470a6e55f5ac6822fc9704265ad75273e",
+  "calibration_summary": {
+    "path": "calibration_fit.json",
+    "synthetic": true
+  },
+  "device_check": null,
+  "gpu": null,
+  "code": {
+    "commit": "synthetic",
+    "dirty": false,
+    "diff_sha256": null
+  },
+  "sealed_utc": "2026-11-26T01:48:23.872191Z",
+  "file_count": 199,
+  "sha256sums_path": "SHA256SUMS",
+  "seal_sha256": "6354c7b73a10d2856caf19a864d9ab5bdc5d4d69b9352e0173478a7b700b0784"
+}

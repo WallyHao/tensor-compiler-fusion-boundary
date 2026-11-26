@@ -1,0 +1,41 @@
+{
+  "calibration": {
+    "bandwidth_bytes_per_us": {
+      "direct": 500.0,
+      "replay": 500.0
+    },
+    "environment_ref": "gpu.json",
+    "l2_bytes": 100663296,
+    "launch_us_per_kernel": {
+      "direct": 4.0,
+      "replay": 0.8
+    }
+  },
+  "cloud": "local CPU",
+  "code_hash": "sha256:322659a8deb29336e86cad21a7056a8b12a1948d9c1ca29d126c4558454349e4",
+  "command": "python -m fusionaudit fixtures --out runs --force",
+  "corpus_hash": "sha256:e8472f904edbc0f10118f4d9c0e9a9baadc22214d32a0c26acb41a86e1269e06",
+  "ended_at": "2026-11-25T00:10:00Z",
+  "environment_lock": "environment.lock",
+  "expected_blocks": 4,
+  "expected_case_count": 9,
+  "gpu_snapshot": "gpu.json",
+  "image": "none (fixture)",
+  "instance": "none (fixture)",
+  "owner": "analysis",
+  "parent_run": null,
+  "persistent_volume": "runs",
+  "planned_template_counts": {
+    "P1": 3,
+    "P2": 2,
+    "R1": 2,
+    "R2": 2
+  },
+  "protocol_hash": "sha256:cbf39dd06b4658eac4913332596f04024d1287134fbad8de2a448ff59dc122fb",
+  "purpose": "SYNTHETIC FIXTURE: validate audit, attempt selection, pairing, classification and leak checks; not experimental data",
+  "run_id": "synthetic-fixture-20261125",
+  "seed": 2026,
+  "started_at": "2026-11-25T00:00:00Z",
+  "status": "synthetic",
+  "synthetic": true
+}

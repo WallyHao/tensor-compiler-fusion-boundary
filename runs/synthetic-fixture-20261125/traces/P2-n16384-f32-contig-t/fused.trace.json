@@ -1,0 +1,7 @@
+{
+  "case_id": "P2-n16384-f32-contig-t",
+  "launches": 1,
+  "strategy": "fused",
+  "synthetic": true,
+  "verdict": "edge-elided"
+}

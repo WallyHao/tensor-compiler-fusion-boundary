@@ -1,0 +1,5 @@
+# Core experiment stack. Record the resolved environment with pip freeze.
+# Linux x86_64 PyPI build, CUDA 12.4.
+torch==2.6.0
+triton==3.2.0
+pytest==8.3.4

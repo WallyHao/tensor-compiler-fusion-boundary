@@ -1,0 +1,18 @@
+triton_poi_fused_add_mul_0
+buf1: SchedulerNode(ComputedBuffer)
+buf1.writes = [MemoryDep('buf1', c0, {c0: 65536})]
+buf1.unmet_dependencies = []
+buf1.met_dependencies = [MemoryDep('arg0_1', c0, {c0: 65536})]
+buf1.users = [NodeUser(users=[buf2])]
+buf1.group.device = cuda:0
+buf1.node.origin = mul
+buf1.node.origin = add
+
+triton_poi_fused_relu_1
+buf2: SchedulerNode(ComputedBuffer)
+buf2.writes = [MemoryDep('buf2', c0, {c0: 65536})]
+buf2.unmet_dependencies = [MemoryDep('buf1', c0, {c0: 65536})]
+buf2.met_dependencies = [MemoryDep('buf1', c0, {c0: 65536})]
+buf2.users = [NodeUser(users=[])]
+buf2.group.device = cuda:0
+buf2.node.origin = relu

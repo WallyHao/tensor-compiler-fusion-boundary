@@ -1,0 +1,7 @@
+{
+  "case_id": "R2-m256-k1024-f16-contig-t",
+  "launches": 2,
+  "strategy": "split",
+  "synthetic": true,
+  "verdict": "edge-materialized"
+}

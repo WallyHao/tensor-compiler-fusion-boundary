@@ -1,0 +1,16 @@
+{"block": 0, "derived_unit": "us_per_kernel", "elapsed_ms": 0.6, "environment_ref": "gpu.json", "mode": "direct", "order": 1, "probe": "launch", "repeats": 100, "size_or_k": 1, "synthetic": true}
+{"block": 1, "derived_unit": "us_per_kernel", "elapsed_ms": 3.4, "environment_ref": "gpu.json", "mode": "direct", "order": 2, "probe": "launch", "repeats": 100, "size_or_k": 8, "synthetic": true}
+{"block": 2, "derived_unit": "us_per_kernel", "elapsed_ms": 13.0, "environment_ref": "gpu.json", "mode": "direct", "order": 3, "probe": "launch", "repeats": 100, "size_or_k": 32, "synthetic": true}
+{"block": 3, "derived_unit": "us_per_kernel", "elapsed_ms": 51.4, "environment_ref": "gpu.json", "mode": "direct", "order": 4, "probe": "launch", "repeats": 100, "size_or_k": 128, "synthetic": true}
+{"block": 0, "derived_unit": "us_per_kernel", "elapsed_ms": 0.11000000000000001, "environment_ref": "gpu.json", "mode": "replay", "order": 1, "probe": "launch", "repeats": 100, "size_or_k": 1, "synthetic": true}
+{"block": 1, "derived_unit": "us_per_kernel", "elapsed_ms": 0.67, "environment_ref": "gpu.json", "mode": "replay", "order": 2, "probe": "launch", "repeats": 100, "size_or_k": 8, "synthetic": true}
+{"block": 2, "derived_unit": "us_per_kernel", "elapsed_ms": 2.59, "environment_ref": "gpu.json", "mode": "replay", "order": 3, "probe": "launch", "repeats": 100, "size_or_k": 32, "synthetic": true}
+{"block": 3, "derived_unit": "us_per_kernel", "elapsed_ms": 10.27, "environment_ref": "gpu.json", "mode": "replay", "order": 4, "probe": "launch", "repeats": 100, "size_or_k": 128, "synthetic": true}
+{"block": 0, "buffer_bytes": 256, "derived_unit": "bytes_per_us", "elapsed_ms": 0.00512, "environment_ref": "gpu.json", "mode": "direct", "order": 1, "probe": "copy", "repeats": 5, "synthetic": true}
+{"block": 1, "buffer_bytes": 1048576, "derived_unit": "bytes_per_us", "elapsed_ms": 20.97152, "environment_ref": "gpu.json", "mode": "direct", "order": 2, "probe": "copy", "repeats": 5, "synthetic": true}
+{"block": 2, "buffer_bytes": 16777216, "derived_unit": "bytes_per_us", "elapsed_ms": 335.54432, "environment_ref": "gpu.json", "mode": "direct", "order": 3, "probe": "copy", "repeats": 5, "synthetic": true}
+{"block": 3, "buffer_bytes": 67108864, "derived_unit": "bytes_per_us", "elapsed_ms": 1342.17728, "environment_ref": "gpu.json", "mode": "direct", "order": 4, "probe": "copy", "repeats": 5, "synthetic": true}
+{"block": 0, "buffer_bytes": 256, "derived_unit": "bytes_per_us", "elapsed_ms": 0.00512, "environment_ref": "gpu.json", "mode": "replay", "order": 1, "probe": "copy", "repeats": 5, "synthetic": true}
+{"block": 1, "buffer_bytes": 1048576, "derived_unit": "bytes_per_us", "elapsed_ms": 20.97152, "environment_ref": "gpu.json", "mode": "replay", "order": 2, "probe": "copy", "repeats": 5, "synthetic": true}
+{"block": 2, "buffer_bytes": 16777216, "derived_unit": "bytes_per_us", "elapsed_ms": 335.54432, "environment_ref": "gpu.json", "mode": "replay", "order": 3, "probe": "copy", "repeats": 5, "synthetic": true}
+{"block": 3, "buffer_bytes": 67108864, "derived_unit": "bytes_per_us", "elapsed_ms": 1342.17728, "environment_ref": "gpu.json", "mode": "replay", "order": 4, "probe": "copy", "repeats": 5, "synthetic": true}

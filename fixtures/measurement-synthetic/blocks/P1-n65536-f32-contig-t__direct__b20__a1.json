@@ -1,0 +1,113 @@
+{
+  "case_id": "P1-n65536-f32-contig-t",
+  "mode": "direct",
+  "block": 20,
+  "attempt": 1,
+  "pair_status": "complete",
+  "tag": null,
+  "committed_utc": "2026-11-25T16:00:42.815985Z",
+  "rows": [
+    {
+      "run_id": "measurement-synthetic",
+      "case_id": "P1-n65536-f32-contig-t",
+      "mode": "direct",
+      "block": 20,
+      "attempt": 1,
+      "strategy": "split",
+      "iteration_order": [
+        "split",
+        "fused"
+      ],
+      "strategy_position": 1,
+      "block_pattern": "SF",
+      "case_order": 0,
+      "n": 2081,
+      "n_trial_split_us": 3.3818799999999998,
+      "n_trial_fused_us": 2.64352,
+      "n_refine": [
+        {
+          "n": 2081,
+          "elapsed_ms": {
+            "split": 7.037692279999999,
+            "fused": 5.5011651200000005
+          },
+          "fastest_ms": 5.5011651200000005
+        }
+      ],
+      "target_batch_ms": 5.0,
+      "n_policy": "same_n_per_case_mode_from_faster_strategy_v1",
+      "warmup_calls": 50,
+      "untimed_calls": 5,
+      "elapsed_ms": 7.16255228,
+      "us_per_call": 3.44188,
+      "window_start_utc": "2026-11-25T16:00:42.815954Z",
+      "window_end_utc": "2026-11-25T16:00:42.815972Z",
+      "device": "fake",
+      "gpu_uuid": "GPU-SYNTHETIC-0000",
+      "stream": "default",
+      "submit_mode": "direct",
+      "artifact_hash": "7c5e9b4155cd5a8c6767d49aae938d0878d85079ad6c778c60aaa05f7945a36b",
+      "n_kernels": 2,
+      "preallocated": true,
+      "observed_kernel_names": null,
+      "launch_verified": null,
+      "quality": "ok",
+      "reason": null,
+      "error": null,
+      "ts_utc": "2026-11-25T16:00:42.815961Z",
+      "telemetry_detail": {},
+      "synthetic": true
+    },
+    {
+      "run_id": "measurement-synthetic",
+      "case_id": "P1-n65536-f32-contig-t",
+      "mode": "direct",
+      "block": 20,
+      "attempt": 1,
+      "strategy": "fused",
+      "iteration_order": [
+        "split",
+        "fused"
+      ],
+      "strategy_position": 2,
+      "block_pattern": "SF",
+      "case_order": 0,
+      "n": 2081,
+      "n_trial_split_us": 3.3818799999999998,
+      "n_trial_fused_us": 2.64352,
+      "n_refine": [
+        {
+          "n": 2081,
+          "elapsed_ms": {
+            "split": 7.037692279999999,
+            "fused": 5.5011651200000005
+          },
+          "fastest_ms": 5.5011651200000005
+        }
+      ],
+      "target_batch_ms": 5.0,
+      "n_policy": "same_n_per_case_mode_from_faster_strategy_v1",
+      "warmup_calls": 50,
+      "untimed_calls": 5,
+      "elapsed_ms": 5.62602512,
+      "us_per_call": 2.70352,
+      "window_start_utc": "2026-11-25T16:00:42.815975Z",
+      "window_end_utc": "2026-11-25T16:00:42.815982Z",
+      "device": "fake",
+      "gpu_uuid": "GPU-SYNTHETIC-0000",
+      "stream": "default",
+      "submit_mode": "direct",
+      "artifact_hash": "93972da6f8c5f66ce2f67b57fab52dd63aca7301854ffc1306e61e93b6f1c866",
+      "n_kernels": 1,
+      "preallocated": true,
+      "observed_kernel_names": null,
+      "launch_verified": null,
+      "quality": "ok",
+      "reason": null,
+      "error": null,
+      "ts_utc": "2026-11-25T16:00:42.815977Z",
+      "telemetry_detail": {},
+      "synthetic": true
+    }
+  ]
+}

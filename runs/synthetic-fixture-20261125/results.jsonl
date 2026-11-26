@@ -1,0 +1,2 @@
+{"case_id": "R2-m64-k512-f32-contig-t", "fold": "naive-row-split", "mode": "direct", "synthetic": true, "test_case_ids": ["R2-m64-k512-f32-contig-t"], "train_case_ids": ["R2-m256-k1024-f16-contig-t"]}
+{"case_id": "R2-m256-k1024-f16-contig-t", "fold": "naive-row-split-2", "mode": "direct", "synthetic": true, "test_case_ids": ["R2-m256-k1024-f16-contig-t"], "train_case_ids": ["R2-m64-k512-f32-contig-t"]}

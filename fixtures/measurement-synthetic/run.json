@@ -1,0 +1,183 @@
+{
+  "run_id": "measurement-synthetic",
+  "purpose": "synthetic",
+  "parent_run": null,
+  "synthetic": true,
+  "protocol": {
+    "version": "fb-4090-p1-v1",
+    "seed": 17,
+    "input_seeds": [
+      17,
+      29,
+      43,
+      0
+    ],
+    "blocks": 30,
+    "strategies": [
+      "split",
+      "fused"
+    ],
+    "modes": [
+      "direct",
+      "replay"
+    ],
+    "pattern_blocks": [
+      15,
+      15
+    ],
+    "target_batch_ms": 5.0,
+    "n_margin": 1.1,
+    "stabilize_ms": 500.0,
+    "max_batch_us": 500000.0,
+    "n_cap": 500000,
+    "trial_iters": 32,
+    "warmup_calls": 50,
+    "untimed_calls": 5,
+    "n_policy": "same_n_per_case_mode_from_faster_strategy_v1",
+    "max_attempts": 3,
+    "telemetry_interval_s": 1.0,
+    "telemetry_gpu_fields": [
+      "timestamp",
+      "name",
+      "uuid",
+      "temperature.gpu",
+      "power.draw",
+      "power.limit",
+      "clocks.sm",
+      "clocks.mem",
+      "clocks_throttle_reasons.active",
+      "utilization.gpu",
+      "memory.used"
+    ],
+    "launch_k": [
+      1,
+      8,
+      32,
+      128
+    ],
+    "calibration_blocks": 20,
+    "calibration_target_ms": 2.0,
+    "calibration_assumed_launch_us": 5.0,
+    "bw_sizes_bytes": [
+      256,
+      512,
+      1024,
+      2048,
+      4096,
+      8192,
+      16384,
+      32768,
+      65536,
+      131072,
+      262144,
+      524288,
+      1048576,
+      2097152,
+      4194304,
+      8388608,
+      16777216,
+      33554432,
+      67108864,
+      134217728,
+      268435456
+    ],
+    "bw_blocks": 20,
+    "bw_target_ms": 2.0,
+    "bw_main_rule": "median_of_largest_three_sizes_above_l2_else_largest_three",
+    "quality_rules": "contaminate_on:external_cuda_process|throttle_state_change;missing_telemetry_marks_reason_but_keeps_row_v1",
+    "order_policy": "case_shuffle_seed;block_pattern_SF15_FS15_shuffled_v1"
+  },
+  "protocol_hash": "0866e23d901da89e7505f88f9711ee836260de0784702b061cd7e98a2c08a6a8",
+  "corpus_hash": "0781a73cd1c7a1d64ebbfaca736cb0799da0bff56179a824a7056a619a3dfa80",
+  "code": {
+    "commit": "synthetic",
+    "dirty": false,
+    "diff_sha256": null
+  },
+  "command_argv": [
+    "fb",
+    "synth-export"
+  ],
+  "cloud": {
+    "platform": "synthetic",
+    "instance_spec": "synthetic",
+    "image_id": "synthetic"
+  },
+  "started_utc": "2026-11-25T16:00:42.746759Z",
+  "finished_utc": "2026-11-25T16:00:43.245115Z",
+  "seed": 17,
+  "owner": "measurement (fixture)",
+  "host": "ember",
+  "status": "done",
+  "resume_count": 0,
+  "resumed_utcs": [],
+  "run_dir": "fixtures/measurement-synthetic",
+  "code_hash": "eef1c10459fe678ba08c1def9d613c1f4401eb5e82012ee74f1c89b71fbf5f69",
+  "candidates": {
+    "provider": "synthetic",
+    "formal": false,
+    "note": "FakeBackend fixture, NOT a measurement"
+  },
+  "last_run_summary": {
+    "started_utc": "2026-11-25T16:00:42.757386Z",
+    "cases": {
+      "P1-n65536-f32-contig-t": {
+        "direct": {
+          "status": "valid",
+          "valid_pairs": 30,
+          "n": 2081,
+          "n_trials": {
+            "split": 3.3818799999999998,
+            "fused": 2.64352
+          },
+          "capture_ms": null
+        },
+        "replay": {
+          "status": "valid",
+          "valid_pairs": 30,
+          "n": 2905,
+          "n_trials": {
+            "split": 2.6318799999999998,
+            "fused": 1.8935199999999999
+          },
+          "capture_ms": {
+            "split": 0.0,
+            "fused": 0.0
+          }
+        }
+      },
+      "R1-m256-k512-f32-contig-t": {
+        "direct": {
+          "status": "valid",
+          "valid_pairs": 30,
+          "n": 1352,
+          "n_trials": {
+            "split": 4.60132,
+            "fused": 4.07068
+          },
+          "capture_ms": null
+        },
+        "replay": {
+          "status": "valid",
+          "valid_pairs": 30,
+          "n": 1657,
+          "n_trials": {
+            "split": 3.8513200000000003,
+            "fused": 3.32068
+          },
+          "capture_ms": {
+            "split": 0.0,
+            "fused": 0.0
+          }
+        }
+      }
+    },
+    "executed_blocks": 120,
+    "paused": false,
+    "finished_utc": "2026-11-25T16:00:43.235831Z"
+  },
+  "calibration": {
+    "path": "calibration_fit.json",
+    "synthetic": true
+  }
+}

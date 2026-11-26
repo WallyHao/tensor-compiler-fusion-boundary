@@ -1,0 +1,60 @@
+{
+  "case_id": "P1-n65536-f32-contig-t",
+  "mode": "direct",
+  "block": 27,
+  "attempt": 1,
+  "pair_status": "default",
+  "tag": "default",
+  "committed_utc": "2026-11-25T16:00:42.885085Z",
+  "rows": [
+    {
+      "run_id": "measurement-synthetic",
+      "case_id": "P1-n65536-f32-contig-t",
+      "mode": "direct",
+      "block": 27,
+      "attempt": 1,
+      "strategy": "default",
+      "iteration_order": [
+        "default"
+      ],
+      "strategy_position": 1,
+      "block_pattern": "default",
+      "case_order": 0,
+      "n": 2081,
+      "n_trial_split_us": 3.3818799999999998,
+      "n_trial_fused_us": 2.64352,
+      "n_refine": [
+        {
+          "n": 2081,
+          "elapsed_ms": {
+            "split": 7.037692279999999,
+            "fused": 5.5011651200000005
+          },
+          "fastest_ms": 5.5011651200000005
+        }
+      ],
+      "target_batch_ms": 5.0,
+      "n_policy": "same_n_per_case_mode_from_faster_strategy_v1",
+      "warmup_calls": 50,
+      "untimed_calls": 5,
+      "elapsed_ms": 10.5893766,
+      "us_per_call": 5.0886,
+      "window_start_utc": "2026-11-25T16:00:42.885052Z",
+      "window_end_utc": "2026-11-25T16:00:42.885080Z",
+      "device": "fake",
+      "gpu_uuid": "GPU-SYNTHETIC-0000",
+      "stream": "default",
+      "submit_mode": "direct",
+      "artifact_hash": "4e34962fbfd51891a946eb34a502e23c1b2ea961d1dbcc562fc0d097f411eea8",
+      "n_kernels": 1,
+      "preallocated": true,
+      "paired": false,
+      "quality": "ok",
+      "reason": null,
+      "error": null,
+      "ts_utc": "2026-11-25T16:00:42.885061Z",
+      "telemetry_detail": {},
+      "synthetic": true
+    }
+  ]
+}

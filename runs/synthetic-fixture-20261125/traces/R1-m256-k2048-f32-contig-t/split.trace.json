@@ -1,0 +1,7 @@
+{
+  "case_id": "R1-m256-k2048-f32-contig-t",
+  "launches": 2,
+  "strategy": "split",
+  "synthetic": true,
+  "verdict": "edge-materialized"
+}
