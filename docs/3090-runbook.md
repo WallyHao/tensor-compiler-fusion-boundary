@@ -1,12 +1,12 @@
-# RTX 3090 Ti 操作手册（编译与取证）
+# RTX 3090 操作手册（编译与取证）
 
-在 3090 Ti 主机上用**同一版本 Inductor、同一单图入口**完成 `default` / `split` / `fused`
+在 3090 主机上用**同一版本 Inductor、同一单图入口**完成 `default` / `split` / `fused`
 三份产物，并交付两个试点的切边证据。计时由测量负责人执行（接口见
 [interface-for-b.md](interface-for-b.md)）。
 
 ## 主机执行顺序
 
-启动装有 3090 Ti 的主机，从其 `~/Workspace` 打开仓库。将 `FB_RUN_ROOT` 设为主机持久盘上的目录。
+启动装有 3090 的主机，从其 `~/Workspace` 打开仓库。将 `FB_RUN_ROOT` 设为主机持久盘上的目录。
 用 `scripts/run_pilot.sh` 生成候选，按输出的 run ID 设置
 `FB_CANDIDATE_RUN="$FB_RUN_ROOT/对应的候选运行ID"`，再执行 `scripts/measure_pilot.sh`。
 确认 P1 和 R1 的 direct、replay 均取齐配对后，才执行 `scripts/run_corpus.sh`。
@@ -24,7 +24,7 @@ export FB_RUN_ROOT="$PWD/runs"
 export PYTHONPATH="$PWD/src"
 ```
 
-先确认 `nvidia-smi` 列出 `NVIDIA GeForce RTX 3090 Ti`。`run.json` 会记录 GPU UUID。更换设备后使用新的 run ID，并重新编译和校准。多卡主机先选定设备，再确保 `fb env` 记录的 `nvidia-smi` GPU UUID 与 PyTorch 的设备 UUID 一致。
+先确认 `nvidia-smi` 列出 `NVIDIA GeForce RTX 3090`。`run.json` 会记录 GPU UUID。更换设备后使用新的 run ID，并重新编译和校准。多卡主机先选定设备，再确保 `fb env` 记录的 `nvidia-smi` GPU UUID 与 PyTorch 的设备 UUID 一致。
 
 NixOS 上，如果 `gcc`/`g++` 不在 `PATH`，先运行 `nix-shell -p gcc`，并在该 shell 中继续。Triton 找不到驱动库时，设置以下变量：
 
@@ -39,10 +39,10 @@ export CC="$(command -v gcc)" CXX="$(command -v g++)"
 ```bash
 VENV=.venv bash scripts/setup_env.sh
 .venv/bin/python -m fb env --run-root "$FB_RUN_ROOT" \
-    --run-id "env-3090ti-$(date -u +%Y%m%dT%H%M%SZ)" --expect-device "RTX 3090 Ti"
+    --run-id "env-3090-$(date -u +%Y%m%dT%H%M%SZ)" --expect-device "RTX 3090"
 ```
 
-预期为 Python 3.12、PyTorch 2.6.0（CUDA 构建 12.4）、Triton 3.2.0 且 `cuda available True`。3090 Ti 的 CUDA 计算能力是 8.6。 [NVIDIA 设备表](https://developer.nvidia.com/cuda/gpus)
+预期为 Python 3.12、PyTorch 2.6.0（CUDA 构建 12.4）、Triton 3.2.0 且 `cuda available True`。3090 的 CUDA 计算能力是 8.6。 [NVIDIA 设备表](https://developer.nvidia.com/cuda/gpus)
 
 ## 1. 冒烟（约 1 分钟）
 
@@ -59,7 +59,7 @@ SMOKE_RUN="$FB_RUN_ROOT/smoke-$(date -u +%Y%m%dT%H%M%SZ)"
 ## 2. 试点（两个试点 × 三策略 + 数值校验 + 证据）
 
 ```bash
-PILOT_ID="pilot-3090ti-$(date -u +%Y%m%dT%H%M%SZ)"
+PILOT_ID="pilot-3090-$(date -u +%Y%m%dT%H%M%SZ)"
 RUN_ID="$PILOT_ID" bash scripts/run_pilot.sh
 ```
 
@@ -141,17 +141,21 @@ bash scripts/run_diag.sh
 
 这三项的目的就是**量化控制手段的代价**，它们的失败/副作用本身就是工作单要求的记录。
 
-## 5. 待 RTX 3090 Ti 实测清单
+## 5. RTX 3090 实测清单（2026-11-26，已完成）
 
-报告引用以下 3090 Ti 主机上的实际产物与测量：
+正式机为 `NVIDIA GeForce RTX 3090`（sm_86、82 SM、6 MiB L2、24 GB，UUID
+`GPU-86a3c91f-c06f-1539-983d-ed541bafc759`，驱动 595.112.07）。实际产物与测量：
 
-- [ ] 两个试点的 `runs/<run_id>/` （default/split/fused 各一份 `output_code.py`）
-- [ ] 试点的 4 组输入数值校验。P1 fp32 atol 1e-6、R1 fp32 atol 2e-4
-- [ ] split 证据中 t 的写出/读回行号、实际 `num_warps` 与 grid
-- [ ] 72 case 的状态表与 `partition_map.json`
-- [ ] 默认策略的实际选择（`default_maps_to`）分布：`fused` 多少、`split` 多少、`distinct` 多少
-- [ ] 诊断控制的分区/图断裂副作用（`diag_*` 三行）
-- [ ] B 的候选来源、编译产物哈希与实际发射记录一致，校准和配对原始行可复算
+- [x] 两个试点的 `runs/<run_id>/`（default/split/fused 各一份 `output_code.py`）——
+  `runs/pilot-3090-20261126T040436Z/`
+- [x] 试点的 4 组输入数值校验，P1 fp32 atol 1e-6、R1 fp32 atol 2e-4 —— 30/30 通过
+- [x] split 证据中 t 的写出/读回行号、实际 `num_warps` 与 grid —— 见 `edge_evidence.json` / `pilot-evidence.md`
+- [x] 72 case 的状态表与 `partition_map.json` —— `runs/corpus-3090-20261126T040513Z/`，216/216 valid
+- [x] `default_maps_to` 分布：`fused`×72、`split`×0、`distinct`×0
+- [x] 诊断控制副作用（`diag_*` 三行）—— `runs/diag-3090-20261126T041458Z/`：
+  clone→仍融合；graph_break→2 图/1 断裂/`partition_mismatch`；no_fusion→P1 1k / R1 2k
+- [x] B 的候选来源、编译产物哈希与发射记录一致，校准与配对原始行可复算 ——
+  `runs/full-meas-3090-20261126T041621Z/`（4320/4320 配对，0 error/污染，`fb verify` 通过）
 
 ## 6. 开发机复现
 
@@ -161,7 +165,7 @@ bash scripts/run_diag.sh
 .venv/bin/python -m fusionboundary pilot --run runs/pilot-local --purpose local-smoke
 ```
 
-RTX 4060 Laptop 已跑通 72 个配置的编译、两个试点的三种策略、数值校验与代码级取证。正式产物在 3090 Ti 主机上重新生成。
+RTX 4060 Laptop 已跑通 72 个配置的编译、两个试点的三种策略、数值校验与代码级取证。正式产物在 3090 主机上重新生成。
 
 ## 7. 失败处理
 

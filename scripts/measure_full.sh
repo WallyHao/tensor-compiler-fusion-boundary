@@ -21,7 +21,7 @@ if [[ -z "$CAND" || ! -f "$CAND/variants.jsonl" ]]; then
   exit 2
 fi
 RUN_ID=${RUN_ID:-full-meas-$(date -u +%Y%m%dT%H%M%SZ)}
-EXPECT=${FB_EXPECT_DEVICE:-RTX 3090 Ti}
+EXPECT=${FB_EXPECT_DEVICE:-RTX 3090}
 mkdir -p "$RUN_ROOT"
 LOG="$RUN_ROOT/$RUN_ID.driver.log"
 mkdir -p "$RUN_ROOT/$RUN_ID"

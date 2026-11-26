@@ -36,7 +36,7 @@ A research report (plus a possible invited talk) for a compilers course, team of
 - Project duration is not a constraint: the user explicitly instructed that topic choice ignore time cost; it constrains scoping to technical merit only.
 - Proposals must be grounded in dated literature and live code rather than recalled knowledge: the user rejected un-researched advice; it constrains every later suggestion to carry evidence.
 - The team writes CUDA kernels and has an HPC background: stated directly by the user; it removes the kernel-engineering risk from the megakernel topic.
-- Hardware: the team owns an RTX 3090 Ti and can rent RTX 4090 or 5090 instances; no sm_90a/sm_100a machine is planned. The 4090 (128 SMs, 24 GB) is the primary target because it matches the H100's SM count; the 3090 Ti (84 SMs, sm_86) is the development and cross-check target; the 5090 is optional because neither Mirage nor the megakernel zoos claim support for sm_120.
+- Hardware: the team owns an RTX 3090 and can rent RTX 4090 or 5090 instances; no sm_90a/sm_100a machine is planned. The 4090 (128 SMs, 24 GB) is the primary target because it matches the H100's SM count; the 3090 (82 SMs, sm_86) is the development and cross-check target; the 5090 is optional because neither Mirage nor the megakernel zoos claim support for sm_120.
 - Project folder: `tensor-compiler-fusion-boundary` — chosen by the user; it fixes the artifact path and the project's public identity.
 - Project title: "Fusion Boundaries: Cross-Hardware Modeling and Prediction of Kernel Fusion Profitability in Tensor Compilers" — proposed by the assistant and adopted when the user selected a folder name derived from it.
 
@@ -45,7 +45,7 @@ A research report (plus a possible invited talk) for a compilers course, team of
 - Recommended an empirical attribution study ("how much of the end-to-end gain comes from graph-level passes versus operator-level tuning, and where is the boundary") instead of a survey of XLA/TVM/MLIR; confirmation pending.
 - Ranked three candidates after recon: (1) fusion-boundary experiment, (2) gain attribution with a failure atlas, (3) differential testing of graph rewrites; (1) preferred because the 2026 literature asks the same boundary question and it can be measured on the available 8 GB GPU; confirmation pending.
 - Reframed candidate (1) as "find the cut criterion", not "reproduce MPK": with hand-built baselines on a 24-SM card, the contribution is a transferable decision rule, since every published megakernel system targets sm_90a/sm_100a and none runs on sm_89; confirmation pending.
-- Proposed a three-way decomposition as the measurement spine: per-operator eager, per-operator under CUDA Graph (launch overhead removed, boundaries kept), and megakernel (boundaries removed), so the difference between the last two isolates structural fusion from launch-overhead removal; target 4090, develop on the 3090 Ti.
+- Proposed a three-way decomposition as the measurement spine: per-operator eager, per-operator under CUDA Graph (launch overhead removed, boundaries kept), and megakernel (boundaries removed), so the difference between the last two isolates structural fusion from launch-overhead removal; target 4090, develop on the 3090.
 
 ## Rejected options
 
@@ -71,6 +71,6 @@ A research report (plus a possible invited talk) for a compilers course, team of
 
 ### 2026-11-23 14:35
 **Q**: What hardware is reachable beyond the laptop GPU; recommend 4090 as the primary target if rentable, because 128 SMs match the H100's 132 and make the SM-count confound small.
-**A**: The team can rent 4090 or 5090 instances and owns a 3090 Ti.
-**Decision**: primary measurements on a 4090, development and cross-machine checks on the 3090 Ti, 5090 optional; the claim is a decomposition of the megakernel gain into launch-overhead removal and cross-operator structure, with the cut point measured as a function of SM count, bandwidth and shape. Constrains the experiment to three comparable execution modes on the same kernels.
+**A**: The team can rent 4090 or 5090 instances and owns a 3090.
+**Decision**: primary measurements on a 4090, development and cross-machine checks on the 3090, 5090 optional; the claim is a decomposition of the megakernel gain into launch-overhead removal and cross-operator structure, with the cut point measured as a function of SM count, bandwidth and shape. Constrains the experiment to three comparable execution modes on the same kernels.
 **New open questions**: which model family and size range anchors the workload; whether the deliverable includes an executable cut planner or stops at a measured rule.

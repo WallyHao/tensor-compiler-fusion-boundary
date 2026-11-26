@@ -1,6 +1,6 @@
 # 产物与取证口径
 
-`runs/<run_id>/` 遵循 `plan/phase1-3090ti/04-data.md`。本文件只说明"哪一份产物支撑哪一条
+`runs/<run_id>/` 遵循 `plan/phase1-3090/04-data.md`。本文件只说明"哪一份产物支撑哪一条
 结论"，以及取证代码在 `src/fusionboundary/forensics.py` 中依赖的格式。
 
 ## 目录

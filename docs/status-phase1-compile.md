@@ -1,9 +1,11 @@
 # 编译/取证交付状态（phase 1）
 
 版本：`torch 2.6.0+cu124`、`triton 3.2.0`（`requirements.lock`）。
-本地验证机：RTX 4060 Laptop（sm_89）。**本文件中的本机结果只证明流程与取证，
-不作为实验数据**；实验数据必须在 3090 Ti 上以同一命令重跑（见
-[3090ti-runbook.md](3090ti-runbook.md)）。
+本地验证机：RTX 4060 Laptop（sm_89）。**本文件第 1–5 节的本机结果只证明流程与取证**；
+正式实验机为 **NVIDIA GeForce RTX 3090**（sm_86，82 SM，6 MiB L2，24 GB，UUID
+`GPU-86a3c91f-c06f-1539-983d-ed541bafc759`），2026-11-26 已用同一命令跑完编译/取证，
+结果见 [§6](#6-rtx-3090-实测结果2026-11-26-已完成)。主机步骤见
+[3090-runbook.md](3090-runbook.md)。
 
 ## 1. 试点结果
 
@@ -107,13 +109,13 @@ fused：单个 `triton_per_fused_relu_sum_0`，`ATen: [aten.sum, aten.relu]`，�
 ## 4. 运行命令
 
 ```bash
-# 0) 环境（3090 Ti 主机或开发机）
+# 0) 环境（3090 主机或开发机）
 VENV=.venv bash scripts/setup_env.sh
 export PYTHONPATH=src
 # 非 Debian 系本机额外需要：LD_LIBRARY_PATH / TRITON_LIBCUDA_PATH / CC / CXX，见 runbook §6
 
 # 1) 72 case 清单
-.venv/bin/python -m fusionboundary manifest --run runs/pilot-3090ti
+.venv/bin/python -m fusionboundary manifest --run runs/pilot-3090
 
 # 2) 两个试点（编译 + 数值校验 + 证据 + 重载校验）
 bash scripts/run_pilot.sh                      # -> runs/pilot-<UTC>/
@@ -157,20 +159,30 @@ runs/<run_id>/cache/<case>/<strategy>/          隔离的 TORCHINDUCTOR_CACHE_DI
 runs/<run_id>/logs/<case>-<strategy>.log        该 worker 的完整日志
 ```
 
-## 6. 待 3090 Ti 实测（本机不做结论）
+## 6. RTX 3090 实测结果（2026-11-26，已完成）
 
-- [ ] 两个试点的 `runs/` 产物（GPU 名、UUID、驱动、SM 数、L2 写入 `run.json`）
-- [ ] 72 case 三策略状态表与 `partition_map.json` 分布（`default_maps_to` 计数）
-- [ ] 多阶段归约（`M=4096, K=8192`）的 `shared_kernel_count` 与分区一致性
-- [ ] fp16 归约样本（R1 累加 fp32、R2 保持 fp16）的 `fp64` 误差量级
-- [ ] 诊断控制在该机上的同一张副作用表
-- [ ] 与 B 的配对计时对齐（同一 `run_id` 的 `variants.jsonl` 被 `CandidateStore` 读取）
-- [ ] 3090 Ti 上的 `capture_replay()` 校验与 B 的 replay 模式
+环境锁 `runs/env-3090-20261126T040400Z`（`device_check.pass=true`）；
+试点 `runs/pilot-3090-20261126T040436Z`；全量 `runs/corpus-3090-20261126T040513Z`；
+诊断 `runs/diag-3090-20261126T041458Z`。
+
+| 待测项 | 结果 |
+|---|---|
+| 两个试点 `runs/` 产物（GPU 名/UUID/驱动/SM/L2 入 `run.json`） | 完成：RTX 3090、UUID `GPU-86a3c91f-…`、驱动 595.112.07、82 SM、L2 6 MiB |
+| 72 case 三策略状态表与 `partition_map.json` 分布 | 完成：**216/216 valid，864/864 校验**；`default_maps_to=fused`×72；`t_materialized` 仅 split（×72，fp32）；default/fused 各 1 kernel，split 恒 2 kernel；`graph_break_count=0`、`unrelated_partition_change=false` ×216 |
+| 多阶段归约（`M=4096, K=8192`）的 `shared_kernel_count` 与分区一致性 | 该网格上 split 恒为 2 kernel，无多阶段（split）归约：`shared_kernel_count` 无可比较公开前置 kernel，如实记录 |
+| fp16 归约样本 `fp64` 误差量级 | 完成：R1（累加 fp32）与 R2（保持 fp16）全通过，容差分档一致（R1 fp32 atol 2e-4，R2 fp16 atol 2e-3） |
+| 诊断控制副作用表 | 完成：`diag_clone`→1 kernel 仍融合；`diag_graph_break`→`graph_count=2`、`graph_break_count=1`、`partition_mismatch`；`diag_no_fusion`→P1 1 kernel（lowering 内联）、R1 2 kernel（调度器切开） |
+| 与 B 的配对计时对齐（同 `run_id` 的 `variants.jsonl` 被 `CandidateStore` 读取） | 完成：`full-meas-3090-20261126T041621Z` 消费 `corpus-3090-…` 的候选，`artifacts/candidates/` 保留来源与哈希 |
+| 3090 上的 `capture_replay()` 校验与 B 的 replay 模式 | 完成：`fb` 试点与全量 replay 模式均有效（试点 20/20；全量 4320/4320，含 replay 各 2160 对） |
+
+`fusion_decision_stage`（default/fused）：`lowering`×24（P1/P2）、`scheduler`×48（R1/R2）；
+split 为 `not_fused`×72。切边机制在 2.6.0 上生效：lowering `realize()` +
+`Scheduler.can_fuse_vertical` 否决（`guard_blocks=1`，门符号记入 `compile_key.json`）。
 
 ## 7. 已知边界
 
 - split 的"同一单图入口"成立：一个 `torch.compile` 产物、一次 Python 调用、wrapper 内
   两次 kernel 发射；`diag_graph_break` 的对照数据说明了违反该条时会多出编译图。
 - 3.2.0 之前的 Triton 或 2.6 之外的 torch 未验证：`compile_key.json` 会因版本不符拒绝加载。
-- 本机结果因 GPU 不同，`kernel_resources`（寄存器、shared、block）与 3090 Ti 可能不同；
+- 本机结果因 GPU 不同，`kernel_resources`（寄存器、shared、block）与 3090 可能不同；
   报告中的资源量必须以该机产物为准。

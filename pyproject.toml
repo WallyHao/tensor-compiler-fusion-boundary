@@ -1,7 +1,7 @@
 [project]
 name = "fusionboundary"
 version = "0.1.0"
-description = "Fusion Boundaries: corpus, split/fused TorchInductor candidates and edge evidence (RTX 3090 Ti phase 1)"
+description = "Fusion Boundaries: corpus, split/fused TorchInductor candidates and edge evidence (RTX 3090 phase 1)"
 requires-python = ">=3.12"
 dependencies = ["torch==2.6.0", "triton==3.2.0"]
 

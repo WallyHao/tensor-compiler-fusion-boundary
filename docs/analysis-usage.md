@@ -10,7 +10,13 @@
   --out analysis/out/<run_id>
 ```
 
-正式 3090 Ti run 使用同一条命令；`--strict` 在审计出现 error 时返回退出码 2。`--expected-blocks 30 --bootstrap 10000 --seed 2026` 为默认口径。禁止把 `--out` 指向原始 run 目录。
+正式 3090 run 使用同一条命令；`--strict` 在审计出现 error 时返回退出码 2。`--expected-blocks 30 --bootstrap 10000 --seed 2026` 为默认口径。禁止把 `--out` 指向原始 run 目录。
+
+已生成（2026-11-26，RTX 3090）：对 `runs/full-meas-3090-20261126T041621Z`
+执行 `build --strict` 得到 **144 个 case/mode 结果、0 error / 0 warning**，输出在
+`analysis/out/full-meas-3090-20261126T041621Z/`（`report.md` + 10 张 SVG）。direct 标签
+68 `fuse` / 3 `equivalent` / 1 `uncertain` / 0 `split`；`always_fused`、默认 Inductor 与
+两/三项模型 regret 均为 0 µs，`always_split` 平均 10.97 µs。
 
 产物：
 

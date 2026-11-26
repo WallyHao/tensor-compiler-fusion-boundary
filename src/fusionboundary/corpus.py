@@ -1,7 +1,7 @@
 """The 72-case corpus for phase 1.
 
 One case = (template, shape, dtype, contiguous layout, named edge ``t``).
-Grid and counts come from plan/phase1-3090ti/02-candidates.md:
+Grid and counts come from plan/phase1-3090/02-candidates.md:
 
 * elementwise (P1, P2): N in {1024, 8192, 65536, 524288, 4194304, 16777216}
 * reduction   (R1, R2): M in {16, 256, 4096}, K in {128, 512, 2048, 8192}
@@ -9,7 +9,7 @@ Grid and counts come from plan/phase1-3090ti/02-candidates.md:
   -> 2*6*2 = 24 elementwise + 2*3*4*2 = 48 reduction = 72 cases.
 
 case_id  is stable and human readable, e.g. ``P1-n65536-f32-contig-t`` or
-``R1-m256-k512-f32-contig-t`` (suggested form in plan/phase1-3090ti/04-data.md).
+``R1-m256-k512-f32-contig-t`` (suggested form in plan/phase1-3090/04-data.md).
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ REDUCTION_MS = (16, 256, 4096)
 REDUCTION_KS = (128, 512, 2048, 8192)
 DTYPES = ("float32", "float16")
 
-#: touple of (atol, rtol) per plan/phase1-3090ti/02-candidates.md "数值验证".
+#: touple of (atol, rtol) per plan/phase1-3090/02-candidates.md "数值验证".
 TOL_ELEM_F32 = (1e-6, 1e-5)      # fp32 elementwise and fp32 amax
 TOL_SUM_F32 = (2e-4, 1e-4)       # fp32 accumulation (sum)
 TOL_F16 = (2e-3, 2e-3)           # every other fp16 output
@@ -125,7 +125,7 @@ class Case:
         return getattr(torch, self.t_dtype)
 
     def as_manifest_row(self) -> dict[str, Any]:
-        """Row shape of cases.jsonl (plan/phase1-3090ti/04-data.md)."""
+        """Row shape of cases.jsonl (plan/phase1-3090/04-data.md)."""
         row = {
             "case_id": self.case_id,
             "template": self.template,

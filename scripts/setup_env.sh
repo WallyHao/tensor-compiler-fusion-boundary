@@ -1,8 +1,8 @@
-# Recreate the pinned experiment environment on the RTX 3090 Ti host.
+# Recreate the pinned experiment environment on the RTX 3090 host.
 #
 #   VENV=.venv bash scripts/setup_env.sh
 #
-# The pins are the ones validated locally (see docs/3090ti-runbook.md); they are
+# The pins are the ones validated locally (see docs/3090-runbook.md); they are
 # the *only* supported stack for phase-1 artifacts. A different torch version
 # invalidates `compile_key.json` and `runtime.CandidateStore` refuses to load
 # old candidates on purpose.

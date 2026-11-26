@@ -582,7 +582,7 @@ def _write_pilot_evidence(run: records.RunDir) -> None:
 
 
 # --------------------------------------------------------------------------
-# consistency check over a finished run (plan/phase1-3090ti/04-data.md 交接验算)
+# consistency check over a finished run (plan/phase1-3090/04-data.md 交接验算)
 # --------------------------------------------------------------------------
 def cmd_check_run(args: argparse.Namespace) -> int:
     run = _rundir(args.run)
@@ -740,7 +740,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--device", default=None)
     p.add_argument("--force", action="store_true")
     p.add_argument("--purpose", default="pilot",
-                   help="run.json purpose, e.g. local-smoke-4060 (not 3090 Ti data)")
+                   help="run.json purpose, e.g. local-smoke-4060 (not 3090 data)")
     p.set_defaults(func=cmd_pilot)
 
     p = sub.add_parser("check-run", help="cross-table consistency check of a run")

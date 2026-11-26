@@ -3,7 +3,7 @@
 Every strategy compiles the *same* function object from ``TEMPLATE_FNS`` with the
 same Inductor config; the strategies differ only in the fusion admission guard
 see``strategies.py``). The reference expressions are plain eager PyTorch, i.e.
-exactly the operators listed in plan/phase1-3090ti/02-candidates.md.
+exactly the operators listed in plan/phase1-3090/02-candidates.md.
 
 Grid in this file is only the shape grid; the case manifest lives in ``corpus``.
 """

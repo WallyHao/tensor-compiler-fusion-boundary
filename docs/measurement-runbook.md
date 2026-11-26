@@ -1,8 +1,8 @@
-# 测量执行手册（B）· RTX 3090 Ti 配对采集
+# 测量执行手册（B）· RTX 3090 配对采集
 
 本文是 `fb` 测量程序的运行、验收与交接说明。协议口径来自
-[`plan/phase1-3090ti/03-collection.md`](../plan/phase1-3090ti/03-collection.md) 与
-[`04-data.md`](../plan/phase1-3090ti/04-data.md)。编译候选由 A 的
+[`plan/phase1-3090/03-collection.md`](../plan/phase1-3090/03-collection.md) 与
+[`04-data.md`](../plan/phase1-3090/04-data.md)。编译候选由 A 的
 `fusionboundary` 包提供，接口见 [`docs/interface-for-b.md`](interface-for-b.md)，
 本程序的适配层在 `fb/fusionboundary_provider.py`。
 
@@ -12,10 +12,10 @@
   入口（`fb calibrate|collect|pilot|profile`）先取 `flock`，默认锁文件
   `<run_root>/gpu.lock`。A 的编译脚本不经过本锁，运行前必须人工确认没有 A 的
   `worker`/`compile` 进程；两边同时跑时后到者应在锁上等待，而不是并行。
-- **设备**：正式运行要求 GPU 名称含 `RTX 3090 Ti`。名称或 UUID 不符时默认中止
+- **设备**：正式运行要求 GPU 名称含 `RTX 3090`。名称或 UUID 不符时默认中止
   （`exit 2`），只有显式 `--allow-device-mismatch` 才继续，且 `run.json`
   会记录 `device_check.pass=false`。
-- **持久存储**：`FB_RUN_ROOT` 应指向 3090 Ti 主机的持久盘。程序用
+- **持久存储**：`FB_RUN_ROOT` 应指向 3090 主机的持久盘。程序用
   `findmnt` 检查，位于 tmpfs/ramfs 或 `/tmp`、`/run` 下时正式运行中止
   （`exit 6`；仅供本地试跑时加 `--allow-ephemeral-root`）。
 - **单位**：`elapsed_ms` 是 CUDA event 原始毫秒；`us_per_call =
@@ -43,7 +43,7 @@ export FB_CANDIDATE_RUN=$FB_RUN_ROOT/pilot-20261125T120000Z
 
 ```bash
 python -m fb env --run-root "$FB_RUN_ROOT" --run-id env-$(date -u +%Y%m%dT%H%M%SZ) \
-  --expect-device "RTX 3090 Ti"
+  --expect-device "RTX 3090"
 ```
 
 写入 `environment/environment.json`、`environment/environment.lock.json`、
@@ -65,7 +65,7 @@ git diff）。必须核对：
 正式采样内部默认已包含校准（`--calibrate`），也可单独跑：
 
 ```bash
-python -m fb calibrate --run-root "$FB_RUN_ROOT" --run-id calib-... --expect-device "RTX 3090 Ti"
+python -m fb calibrate --run-root "$FB_RUN_ROOT" --run-id calib-... --expect-device "RTX 3090"
 ```
 
 - **L, 普通启动**：同一 Triton launcher 连续发 k∈{1,8,32,128} 个最小 kernel，
@@ -180,7 +180,7 @@ $FB_RUN_ROOT/$RUN_ID/
 cd "$FB_RUN_ROOT/$RUN_ID" && sha256sum -c SHA256SUMS
 ```
 
-## 8. 3090 Ti 主机采集条件
+## 8. 3090 主机采集条件
 
 1. 启动主机后运行 `nvidia-smi -L` 核对设备，确认 PyTorch 记录的 UUID 一致。
 2. 保持功耗上限和时钟策略一致。遥测检测到节流状态切换时，整块标污染。
@@ -207,7 +207,7 @@ cd "$FB_RUN_ROOT/$RUN_ID" && sha256sum -c SHA256SUMS
 
 ## 10. RTX 4060 Laptop 初次冒烟记录
 
-这批 RTX 4060 Laptop 数据用于验证流程。主机工具链配置见[编译手册](3090ti-runbook.md)。
+这批 RTX 4060 Laptop 数据用于验证流程。主机工具链配置见[编译手册](3090-runbook.md)。
 
 2026-11-25 的实测阻塞（阻塞正式配对，不阻塞测量程序本身）：
 
@@ -231,18 +231,30 @@ cd "$FB_RUN_ROOT/$RUN_ID" && sha256sum -c SHA256SUMS
 归档（不进报告）：`fixtures/pilot-4060-local/`（reference + 遥测/重试）。
 A 候选的归档在 runtime 修复后重新采集，旧归档已删除。
 本机校准（4060）：L_direct ≈ 9.6 µs/kernel，L_replay ≈ 0.85 µs/kernel，
-BW ≈ 225 GB/s（取 64/128/256 MiB，L2=32 MiB）。正式校准在 3090 Ti 主机上重跑。
+BW ≈ 225 GB/s（取 64/128/256 MiB，L2=32 MiB）。正式校准已在 3090 主机上重跑
+（2026-11-26）：L_direct 6.50 µs/kernel、L_replay 0.913 µs/kernel、BW 836.9 GB/s（见 §12）。
 
 n 选择补充：0.5 s 稳定预热（仅 CUDA）→ 32 次试算 → 10% 余量 → 至多两轮
 实批校正，保证较快策略单批 ≥5 ms；`n_refine` 与 `stabilize` 写入 state。
 若 `default_maps_to="distinct"`，按 03 第 4 步用同一 n 补 30 条 **未配对**
 default 行（`paired=false`），不参与配对。
 
-## 12. 3090 Ti 待验收
+## 12. RTX 3090 采集结果（2026-11-26，已完成）
 
-归档 wrapper 加载修复后，RTX 4060 Laptop 的两案例集成试跑完成 16/16 对，且严格审计无错误。
-在 3090 Ti 主机上按[编译手册](3090ti-runbook.md)先重编候选并验证设备，再执行带校准和遥测的
-试点。试点通过后编译全量 72 个配置，用新 run 采集正式数据。
+在 RTX 3090 主机上按[编译手册](3090-runbook.md)重编候选并核验设备（sm_86、82 SM、
+6 MiB L2、UUID `GPU-86a3c91f-…`、驱动 595.112.07），随后执行带校准与遥测的采集：
+
+| run | 候选 | blocks | 有效配对 | error/污染 | 说明 |
+|---|---|---|---|---|---|
+| `runs/pilot-meas-20261126T041540Z` | `pilot-3090-…` | 5 | 20/20 | 0/0 | 两阶段暂停 + 恢复；两种 mode |
+| `runs/full-meas-3090-20261126T041621Z` | `corpus-3090-…` | 30 | **4320/4320** | 0/0 | 8640 timing 行全 `quality=ok`；integrity PASS；`fb seal` + `verify` 通过 |
+
+校准（`full-meas-…/calibration_fit.json`）：`L_direct = 6.50 µs/kernel`、
+`L_replay = 0.913 µs/kernel`、`BW = 836.9 GB/s`（512/256/128 MiB）、L2 = 6 MiB。
+两个 run 的每个 block 均为 `attempt=1`，加载的变体全部通过发射名核验
+（`launch_verified`），即 [measurement-blockers.md](measurement-blockers.md) 的 B1
+split 发射问题在 torch 2.6.0 未复现。`fusionaudit build --strict` 在该 run 上得到
+144 个 case/mode 结果、0 error / 0 warning。
 
 ## 13. 启动前 GPU 独占检查
 

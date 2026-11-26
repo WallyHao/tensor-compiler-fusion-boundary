@@ -349,7 +349,7 @@ def _collect(args, purpose: str, default_cases: str, default_blocks: int | None)
             env = _env_or_capture(ctx, args.device_index, args.recapture_env, root)
             expected = args.expect_device
             if expected is None and formal:
-                expected = os.environ.get("FB_EXPECT_DEVICE", "RTX 3090 Ti")
+                expected = os.environ.get("FB_EXPECT_DEVICE", "RTX 3090")
             check, ok = _check_device(env, expected, args.expect_uuid,
                                       args.allow_device_mismatch, ctx)
             if not ok:
