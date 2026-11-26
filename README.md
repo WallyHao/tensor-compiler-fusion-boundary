@@ -77,6 +77,7 @@ docs/            接口、产物口径、3090 手册
 | 3090 编译（试点 + 全量 + 诊断） | **完成**：试点 6/6 valid；全量 **216/216 valid、864/864 校验**，`check-run` problems=[] |
 | 3090 测量（试点 + 全量） | **完成**：试点 **20/20 配对**；全量 **4320/4320 配对**（8640 timing 行），0 error / 0 污染 |
 | 3090 分析 | **完成**：`fusionaudit build --strict` → 144 结果，0 error / 0 warning |
+| 3090 补采（followup） | **完成**：20 配置（16 新 + 4 对照）编译 60/60 valid、正式 **1200/1200 配对**、冻结预测 + 复跑 + 严格审计 0 error / 0 warning；见 [docs/followup-3090-runbook.md](docs/followup-3090-runbook.md) |
 
 RTX 4060 Laptop 上的冒烟仅用于验证流程。正式 run 的 GPU 型号、驱动和设备 UUID 写入 `run.json`。
 

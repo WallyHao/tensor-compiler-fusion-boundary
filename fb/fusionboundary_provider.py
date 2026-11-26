@@ -49,7 +49,7 @@ class FusionBoundaryProvider:
         self.options = options or {}
         self.run_path = Path(run_path).resolve()
         _ensure_importable(Path(__file__).resolve().parent.parent)
-        from fusionboundary.corpus import build_corpus
+        from fusionboundary.corpus import build_corpus, read_manifest
         from fusionboundary.runtime import CandidateStore
 
         self.verify_launch = bool(self.options.get("verify_launch", True))
@@ -66,18 +66,22 @@ class FusionBoundaryProvider:
         self._raw: dict[tuple[str, str], dict] = {
             (r["case_id"], r["strategy"]): r for r in raw_rows
         }
-        corpus = {c.case_id: c for c in build_corpus()}
+        # The explicit manifest (A's cases.jsonl) is the single source of truth
+        # for the case set; fall back to the built-in phase-1 corpus only when
+        # no manifest was written.
         manifest_path = self.run_path / "cases.jsonl"
         if manifest_path.exists():
+            cases = {c.case_id: c for c in read_manifest(str(manifest_path))}
             cids = []
             for line in manifest_path.read_text(encoding="utf-8").splitlines():
                 if line.strip():
                     cids.append(json.loads(line)["case_id"])
         else:
+            cases = {c.case_id: c for c in build_corpus()}
             cids = sorted({c for (c, _s) in self._raw} | set(self.store.case_ids()))
         self._cases = {}
         for cid in cids:
-            case = corpus.get(cid)
+            case = cases.get(cid)
             if case is None:
                 continue
             statuses = {

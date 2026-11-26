@@ -226,6 +226,81 @@ def compare(args):
     })
 
 
+def score_followup(args):
+    """Score frozen predictions on the followup run using its own denominators.
+
+    The paired target set is the followup's valid configurations; the 4 anchor
+    rows are the same-round controls of the phase-1 grid, and any case id that
+    also exists in the historical source results is reported as a delta.
+    """
+    frozen = read_json(args.predictions)
+    target_run = read_json(args.target_run / "run.json")
+    if frozen["frozen_utc"] >= target_run["started_utc"]:
+        raise ValueError("predictions must predate paired measurements")
+    device = target_run["device_check"]
+    if not device["pass"] or frozen["target"]["gpu_uuid"] not in device["observed_uuids"]:
+        raise ValueError("paired measurements must use the same GPU as the frozen predictions")
+    results = {(r["case_id"], r["mode"]): r for r in read_jsonl(args.target_results)}
+    predictions = {(r["case_id"], r["mode"]): r for r in frozen["predictions"]}
+    decisions = defaultdict(list)
+    label_counts = Counter()
+    missing = []
+    for key, row in sorted(results.items()):
+        group = str(row.get("group") or row.get("template"))
+        label_counts[row["mode"], group, row["label"]] += 1
+        pred = predictions.get(key)
+        if pred is None:
+            missing.append({"case_id": key[0], "mode": key[1]})
+            continue
+        split, fused = row["T_split_us"], row["T_fused_us"]
+        for method, choice in pred["choices"].items():
+            if choice is None:
+                continue
+            regret = regret_us(split, fused, choice)
+            decision = {"case_id": key[0], "mode": key[1], "group": group,
+                        "template": row.get("template"), "method": method,
+                        "predicted": choice, "actual_label": row["label"],
+                        "T_split_us": split, "T_fused_us": fused, "regret_us": regret,
+                        "regret_relative": regret / min(split, fused)}
+            decisions[key[1], "all", method].append(decision)
+            decisions[key[1], group, method].append(decision)
+
+    groups = ["all"] + sorted({str(r.get("group") or r.get("template")) for r in results.values()})
+    metrics = []
+    for mode in ("direct", "replay"):
+        for group in groups:
+            denom = sum(1 for r in results.values() if r["mode"] == mode
+                        and (group == "all" or str(r.get("group") or r.get("template")) == group))
+            for method in METHODS:
+                metrics.append({"mode": mode, "group": group, "method": method,
+                                **aggregate_metrics(decisions[mode, group, method], denom)})
+
+    anchor_delta = []
+    if args.history_results is not None:
+        history = {(r["case_id"], r["mode"]): r for r in read_jsonl(args.history_results)}
+        for key, row in sorted(results.items()):
+            old = history.get(key)
+            if old is None:
+                continue
+            anchor_delta.append({
+                "case_id": key[0], "mode": key[1],
+                "history_rel": old["relative_benefit"], "followup_rel": row["relative_benefit"],
+                "history_label": old["label"], "followup_label": row["label"],
+                "history_T_split_us": old["T_split_us"], "followup_T_split_us": row["T_split_us"],
+            })
+    atomic_write_json(args.output, {
+        "target_run_id": target_run["run_id"], "source_run_id": frozen["source_run_id"],
+        "frozen_utc": frozen["frozen_utc"], "paired_started_utc": target_run["started_utc"],
+        "n_target_case_modes": len(results), "missing_predictions": missing,
+        "predictions_sha256": sha256_file(args.predictions),
+        "target_results_sha256": sha256_file(args.target_results),
+        "label_counts": [dict(mode=m, group=g, label=label, count=n)
+                         for (m, g, label), n in sorted(label_counts.items())],
+        "metrics": metrics, "anchor_vs_history": anchor_delta,
+        "decisions": [row for (m, g, _name), rows in decisions.items() if g == "all" for row in rows],
+    })
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(required=True)
@@ -239,6 +314,13 @@ def main():
     for name in ("predictions", "source-results", "target-results", "target-run", "output"):
         score.add_argument(f"--{name}", type=Path, required=True)
     score.set_defaults(execute=compare)
+    followup = commands.add_parser("score-followup",
+                                   help="score frozen predictions on the 3090 followup run")
+    for name in ("predictions", "target-results", "target-run", "output"):
+        followup.add_argument(f"--{name}", type=Path, required=True)
+    followup.add_argument("--history-results", type=Path,
+                          help="optional phase-1 results.jsonl for the same-round anchor deltas")
+    followup.set_defaults(execute=score_followup)
     args = parser.parse_args()
     args.execute(args)
 

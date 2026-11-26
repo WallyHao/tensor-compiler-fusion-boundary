@@ -342,22 +342,45 @@ def _find_edge_fx_nodes(graph: Any, spec: Any) -> dict[str, str]:
     """Locate producer/consumer FX nodes of the edge from the post-grad graph.
 
     The consumer is the first ``call_function`` node whose target matches the
-    template's consumer ops; the producer is its first ``call_function`` input.
-    This is derived from the graph, not from node naming conventions.
+    template's consumer ops. The producer is then the *closest* transitive
+    ``call_function`` input whose target matches the template's producer ops;
+    for templates whose consumer wraps the edge in another op (N1:
+    ``rsqrt(add(mean(...), eps))``) this walks past the wrapper. When nothing
+    matches the producer ops the first call_function input is used, which is
+    what the pointwise and existing reduction templates already resolve to.
     """
     for node in graph.nodes:
         if node.op != "call_function":
             continue
         if not _text_matches(str(node.target), spec.consumer_ops):
             continue
-        for inp in node.all_input_nodes:
-            if inp.op == "call_function":
+        seen: set[int] = set()
+        queue = list(node.all_input_nodes)
+        first: Any = None
+        while queue:
+            candidate = queue.pop(0)
+            if id(candidate) in seen:
+                continue
+            seen.add(id(candidate))
+            if candidate.op != "call_function":
+                continue
+            if first is None:
+                first = candidate
+            if _text_matches(str(candidate.target), spec.producer_ops):
                 return {
-                    "producer": inp.name,
+                    "producer": candidate.name,
                     "consumer": node.name,
-                    "producer_target": str(inp.target),
+                    "producer_target": str(candidate.target),
                     "consumer_target": str(node.target),
                 }
+            queue.extend(candidate.all_input_nodes)
+        if first is not None:
+            return {
+                "producer": first.name,
+                "consumer": node.name,
+                "producer_target": str(first.target),
+                "consumer_target": str(node.target),
+            }
     return {}
 
 

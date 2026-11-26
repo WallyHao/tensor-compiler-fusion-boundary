@@ -15,13 +15,16 @@ case_id  is stable and human readable, e.g. ``P1-n65536-f32-contig-t`` or
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field, asdict
+import math
+from dataclasses import dataclass, field, replace
 from typing import Any, Iterator
 
 ELEMENTWISE_NS = (1024, 8192, 65536, 524288, 4194304, 16777216)
 REDUCTION_MS = (16, 256, 4096)
 REDUCTION_KS = (128, 512, 2048, 8192)
 DTYPES = ("float32", "float16")
+REDUCTION_TEMPLATES = ("R1", "R2", "N1")
+LAYOUTS = ("contig", "transpose")
 
 #: touple of (atol, rtol) per plan/phase1-3090/02-candidates.md "数值验证".
 TOL_ELEM_F32 = (1e-6, 1e-5)      # fp32 elementwise and fp32 amax
@@ -61,6 +64,15 @@ TEMPLATE_INFO: dict[str, dict[str, Any]] = {
         "t_dtype_rule": "same_as_input",
         "out_dtype_rule": "follow_t",
     },
+    # Followup (plan/followup-3090): RMSNorm row-mean -> inverse-RMS-factor edge.
+    "N1": {
+        "kind": "reduction",
+        "producer": "t = mean(x.square(), dim=1)",
+        "consumer": "y = rsqrt(t + 1e-5)",
+        "t_source": "row",
+        "t_dtype_rule": "always_float32",
+        "out_dtype_rule": "follow_t",
+    },
 }
 
 _DTYPE_TAG = {"float32": "f32", "float16": "f16"}
@@ -69,11 +81,29 @@ _DTYPE_ITEMSIZE = {"float32": 4, "float16": 2}
 
 def tolerance_for(template: str, dtype: str) -> tuple[float, float]:
     """Tolerance table from the work order. R1 accumulates in fp32 for both dtypes."""
-    if template == "R1":
+    if template in ("R1", "N1"):
         return TOL_SUM_F32
     if dtype == "float32":
         return TOL_ELEM_F32
     return TOL_F16
+
+
+def input_stride(shape: tuple[int, ...], layout: str) -> tuple[int, ...]:
+    """Physical stride of a case input.
+
+    ``contig`` is the natural row-major stride; ``transpose`` is a logical
+    ``(M, K)`` view over a contiguous ``(K, M)`` buffer, i.e. stride ``(1, M)``,
+    so the reduction over logical dim 1 walks the fast axis of the storage.
+    """
+    if layout == "transpose" and len(shape) == 2:
+        m, _k = shape
+        return (1, m)
+    stride: list[int] = []
+    acc = 1
+    for dim in reversed(shape):
+        stride.append(acc)
+        acc *= dim
+    return tuple(reversed(stride))
 
 
 @dataclass(frozen=True)
@@ -161,40 +191,56 @@ class Case:
             "logical_save_bytes", "seeds", "zero_input", "group", "planned_status",
             "exclusion_reason", "fp64_reference", "tolerance", "logical_save_formula",
         }
+        template = row["template"]
+        info = TEMPLATE_INFO.get(template, {})
+        dtype = row["dtype"]
+        kind = row.get("kind") or info.get("kind") or (
+            "reduction" if template in REDUCTION_TEMPLATES else "elementwise")
         tol = row.get("tolerance", {})
+        default_atol, default_rtol = tolerance_for(template, dtype)
+        t_shape = tuple(row["t_shape"])
+        t_itemsize = _DTYPE_ITEMSIZE.get(row["t_dtype"], 4)
+        t_numel = 1
+        for dim in t_shape:
+            t_numel *= dim
+        logical_save_bytes = row.get(
+            "logical_save_bytes",
+            row.get("logical_saved_bytes", 2 * t_numel * t_itemsize))
         return Case(
             case_id=row["case_id"],
-            template=row["template"],
-            kind=row["kind"],
+            template=template,
+            kind=kind,
             shape=tuple(row["shape"]),
-            dtype=row["dtype"],
-            layout=row["layout"],
-            edge=row["edge"],
-            producer=row["producer"],
-            consumer=row["consumer"],
-            t_shape=tuple(row["t_shape"]),
+            dtype=dtype,
+            layout=row.get("layout", "contig"),
+            edge=row.get("edge", "t"),
+            producer=row.get("producer") or info.get("producer", ""),
+            consumer=row.get("consumer") or info.get("consumer", ""),
+            t_shape=t_shape,
             t_dtype=row["t_dtype"],
-            out_shape=tuple(row["out_shape"]),
-            out_dtype=row["out_dtype"],
-            logical_save_bytes=row["logical_save_bytes"],
-            seeds=tuple(row["seeds"]),
-            zero_input=row["zero_input"],
-            group=row["group"],
-            atol=tol.get("atol", 0.0),
-            rtol=tol.get("rtol", 0.0),
-            fp64_reference=row.get("fp64_reference", False),
+            out_shape=tuple(row.get("out_shape") or t_shape),
+            out_dtype=row.get("out_dtype") or row["t_dtype"],
+            logical_save_bytes=int(logical_save_bytes),
+            seeds=tuple(row.get("seeds", row.get("input_seeds", (17, 29, 43)))),
+            zero_input=bool(row.get("zero_input", True)),
+            group=row.get("group") or template,
+            atol=float(tol.get("atol", default_atol)),
+            rtol=float(tol.get("rtol", default_rtol)),
+            fp64_reference=bool(row.get("fp64_reference", kind == "reduction")),
             planned_status=row.get("planned_status", "planned"),
             exclusion_reason=row.get("exclusion_reason"),
             extras={k: v for k, v in row.items() if k not in known},
         )
 
 
-def _make_case(template: str, shape: tuple[int, ...], dtype: str) -> Case:
+def _make_case(template: str, shape: tuple[int, ...], dtype: str,
+               layout: str = "contig", group: str | None = None) -> Case:
     info = TEMPLATE_INFO[template]
     kind = info["kind"]
+    tag = _DTYPE_TAG[dtype]
     if kind == "elementwise":
         (n,) = shape
-        cid = f"{template}-n{n}-{_DTYPE_TAG[dtype]}-contig-t"
+        cid = f"{template}-n{n}-{tag}-{layout}-t"
         t_shape: tuple[int, ...] = (n,)
         out_shape: tuple[int, ...] = (n,)
         t_dtype = dtype
@@ -202,7 +248,7 @@ def _make_case(template: str, shape: tuple[int, ...], dtype: str) -> Case:
         extras: dict[str, Any] = {"n": n, "grid_axes": {"N": n}}
     else:
         m, k = shape
-        cid = f"{template}-m{m}-k{k}-{_DTYPE_TAG[dtype]}-contig-t"
+        cid = f"{template}-m{m}-k{k}-{tag}-{layout}-t"
         t_shape = (m,)
         out_shape = (m,)
         t_dtype = "float32" if info["t_dtype_rule"] == "always_float32" else dtype
@@ -214,8 +260,10 @@ def _make_case(template: str, shape: tuple[int, ...], dtype: str) -> Case:
         t_bytes *= d
     t_bytes *= _DTYPE_ITEMSIZE[t_dtype]
     # Value of y on the all-zero input (t is then a constant, so y is exact);
-    # used as an independent semantic self-check of the manifest.
-    zero_out = {"P1": 0.25, "P2": 0.25, "R1": 0.0, "R2": 0.25}[template]
+    # used as an independent semantic self-check of the manifest. For N1 the
+    # all-zero row mean is 0, so y = rsqrt(0 + 1e-5).
+    zero_out = {"P1": 0.25, "P2": 0.25, "R1": 0.0, "R2": 0.25,
+                "N1": 1.0 / math.sqrt(1e-5)}[template]
     extras["expected_zero_output"] = zero_out
     extras["logical_t_write_bytes"] = t_bytes
     extras["logical_t_read_bytes"] = t_bytes
@@ -225,7 +273,7 @@ def _make_case(template: str, shape: tuple[int, ...], dtype: str) -> Case:
         kind=kind,
         shape=shape,
         dtype=dtype,
-        layout="contig",
+        layout=layout,
         edge="t",
         producer=info["producer"],
         consumer=info["consumer"],
@@ -236,7 +284,7 @@ def _make_case(template: str, shape: tuple[int, ...], dtype: str) -> Case:
         logical_save_bytes=2 * t_bytes,
         seeds=(17, 29, 43),
         zero_input=True,
-        group=template,
+        group=group if group is not None else template,
         atol=atol,
         rtol=rtol,
         fp64_reference=(kind == "reduction"),
@@ -269,10 +317,16 @@ def corpus_index(cases: list[Case] | None = None) -> dict[str, Case]:
 
 
 def get_case(case_id: str) -> Case:
-    try:
-        return corpus_index()[case_id]
-    except KeyError as exc:  # pragma: no cover - user input path
-        raise KeyError(f"unknown case_id {case_id!r}; see `python -m fusionboundary manifest`") from exc
+    index = corpus_index()
+    if case_id in index:
+        return index[case_id]
+    followup = followup_index()
+    if case_id in followup:
+        return followup[case_id]
+    raise KeyError(
+        f"unknown case_id {case_id!r}; see `python -m fusionboundary manifest` "
+        "or `python -m fusionboundary manifest --followup`"
+    )
 
 
 def pilot_cases() -> list[Case]:
@@ -332,3 +386,117 @@ def read_manifest(path: str) -> list[Case]:
             if line:
                 rows.append(Case.from_row(json.loads(line)))
     return rows
+
+
+# --------------------------------------------------------------------------
+# Followup corpus (plan/followup-3090): 16 new configurations + 4 same-round
+# controls. Kept separate from ``build_corpus`` so the phase-1 behaviour
+# (72 cases, ``--all``, existing case IDs) is unchanged.
+# --------------------------------------------------------------------------
+FOLLOWUP_GROUPS = ("anchor", "long", "layout", "rmsnorm")
+
+#: The four same-round controls, re-measured under their original case IDs.
+_FOLLOWUP_ANCHOR: tuple[tuple[str, tuple[int, int]], ...] = (
+    ("R1", (16, 8192)),
+    ("R1", (256, 8192)),
+    ("R2", (16, 8192)),
+    ("R2", (256, 8192)),
+)
+#: K extended to 16384 / 32768 on the four controls.
+_FOLLOWUP_LONG: tuple[tuple[str, tuple[int, int]], ...] = tuple(
+    (template, (m, k)) for template in ("R1", "R2") for m in (16, 256)
+    for k in (16384, 32768)
+)
+#: Same shapes as the R templates but a transposed input view (stride (1, M)).
+_FOLLOWUP_LAYOUT: tuple[tuple[str, tuple[int, int]], ...] = _FOLLOWUP_ANCHOR
+#: RMSNorm inverse-RMS-factor edge, new template N1.
+_FOLLOWUP_RMSNORM: tuple[tuple[str, tuple[int, int]], ...] = tuple(
+    ("N1", (m, k)) for m in (16, 256) for k in (4096, 8192)
+)
+
+#: The three ``pilot=yes`` configurations of the work order.
+FOLLOWUP_PILOT_IDS: tuple[str, ...] = (
+    "R1-m16-k16384-f32-contig-t",
+    "R2-m16-k8192-f32-transpose-t",
+    "N1-m16-k8192-f32-contig-t",
+)
+
+_FOLLOWUP_CONTROLS: dict[str, str | None] = {
+    "R1-m16-k16384-f32-contig-t": "R1-m16-k8192-f32-contig-t",
+    "R1-m16-k32768-f32-contig-t": "R1-m16-k8192-f32-contig-t",
+    "R1-m256-k16384-f32-contig-t": "R1-m256-k8192-f32-contig-t",
+    "R1-m256-k32768-f32-contig-t": "R1-m256-k8192-f32-contig-t",
+    "R2-m16-k16384-f32-contig-t": "R2-m16-k8192-f32-contig-t",
+    "R2-m16-k32768-f32-contig-t": "R2-m16-k8192-f32-contig-t",
+    "R2-m256-k16384-f32-contig-t": "R2-m256-k8192-f32-contig-t",
+    "R2-m256-k32768-f32-contig-t": "R2-m256-k8192-f32-contig-t",
+    "R1-m16-k8192-f32-transpose-t": "R1-m16-k8192-f32-contig-t",
+    "R1-m256-k8192-f32-transpose-t": "R1-m256-k8192-f32-contig-t",
+    "R2-m16-k8192-f32-transpose-t": "R2-m16-k8192-f32-contig-t",
+    "R2-m256-k8192-f32-transpose-t": "R2-m256-k8192-f32-contig-t",
+}
+
+
+def followup_cases() -> list[Case]:
+    """The 20 followup configurations (cases.csv), in work-order order."""
+    built: list[Case] = []
+    for template, shape in _FOLLOWUP_ANCHOR:
+        built.append(_make_case(template, shape, "float32", "contig", "anchor"))
+    for template, shape in _FOLLOWUP_LONG:
+        built.append(_make_case(template, shape, "float32", "contig", "long"))
+    for template, shape in _FOLLOWUP_LAYOUT:
+        built.append(_make_case(template, shape, "float32", "transpose", "layout"))
+    for template, shape in _FOLLOWUP_RMSNORM:
+        built.append(_make_case(template, shape, "float32", "contig", "rmsnorm"))
+    cases: list[Case] = []
+    for case in built:
+        extras = dict(case.extras)
+        extras["control_id"] = _FOLLOWUP_CONTROLS.get(case.case_id)
+        extras["pilot"] = case.case_id in FOLLOWUP_PILOT_IDS
+        extras["source"] = "followup-3090"
+        extras["input_shape"] = list(case.shape)
+        extras["input_stride"] = list(input_stride(case.shape, case.layout))
+        cases.append(replace(case, extras=extras))
+    return cases
+
+
+def followup_index(cases: list[Case] | None = None) -> dict[str, Case]:
+    cases = cases if cases is not None else followup_cases()
+    index = {c.case_id: c for c in cases}
+    if len(index) != len(cases):
+        raise AssertionError("duplicate case_id in followup corpus")
+    return index
+
+
+def followup_pilot_cases() -> list[Case]:
+    index = followup_index()
+    return [index[cid] for cid in FOLLOWUP_PILOT_IDS]
+
+
+def followup_expected_counts() -> dict[str, int]:
+    cases = followup_cases()
+    counts = {g: sum(1 for c in cases if c.group == g) for g in FOLLOWUP_GROUPS}
+    template_counts = {t: sum(1 for c in cases if c.template == t)
+                       for t in sorted({c.template for c in cases})}
+    counts.update(template_counts)
+    counts["total"] = len(cases)
+    return counts
+
+
+def write_followup_manifest(path: str) -> dict[str, Any]:
+    """Write the 20-case followup cases.jsonl and return a summary dict."""
+    import os
+
+    cases = followup_cases()
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        for case in cases:
+            fh.write(json.dumps(case.as_manifest_row(), sort_keys=True) + "\n")
+    return {
+        "cases": len(cases),
+        "by_group": {g: sum(1 for c in cases if c.group == g) for g in FOLLOWUP_GROUPS},
+        "by_template": {t: sum(1 for c in cases if c.template == t)
+                        for t in sorted({c.template for c in cases})},
+        "pilot_cases": list(FOLLOWUP_PILOT_IDS),
+        "sha256": _sha256_file(path),
+    }

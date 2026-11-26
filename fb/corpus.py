@@ -46,9 +46,22 @@ TEMPLATES = {
         "edge": "t",
         "t_expr": "amax(x, dim=1)",
     },
+    "N1": {
+        "producer": "mean(x.square(), dim=1)",
+        "consumer": "rsqrt(t + 1e-5)",
+        "edge": "t",
+        "t_expr": "mean(x.square(), dim=1)",
+    },
 }
 
 PILOT_CASES = ("P1-n65536-f32-contig-t", "R1-m256-k512-f32-contig-t")
+
+#: The three ``pilot=yes`` configurations of plan/followup-3090.
+FOLLOWUP_PILOT_CASES = (
+    "R1-m16-k16384-f32-contig-t",
+    "R2-m16-k8192-f32-transpose-t",
+    "N1-m16-k8192-f32-contig-t",
+)
 
 REQUIRED_CASE_FIELDS = (
     "case_id",
@@ -143,8 +156,8 @@ def validate_catalog(cases: list[dict]) -> list[str]:
         if cid in seen:
             problems.append(f"{where}: duplicate case_id")
         seen.add(cid)
-        if c.get("layout") != "contig":
-            problems.append(f"{where}: layout must be contig")
+        if c.get("layout") not in ("contig", "transpose"):
+            problems.append(f"{where}: layout must be contig or transpose")
         if c.get("edge") != "t":
             problems.append(f"{where}: edge must be t")
         if not isinstance(c.get("input_seeds"), list) or not c.get("input_seeds"):
@@ -166,16 +179,17 @@ def validate_catalog(cases: list[dict]) -> list[str]:
                 ok = isinstance(shape, (list, tuple)) and len(shape) == 1
             if not ok:
                 problems.append(f"{where}: P template needs N in shape")
-        elif c.get("template") in ("R1", "R2"):
+        elif c.get("template") in ("R1", "R2", "N1"):
             if isinstance(shape, dict):
                 ok = {"M", "K"} <= set(shape)
             else:
                 ok = isinstance(shape, (list, tuple)) and len(shape) == 2
             if not ok:
-                problems.append(f"{where}: R template needs M and K in shape")
+                problems.append(f"{where}: R/N template needs M and K in shape")
         elif c.get("template") not in TEMPLATES:
             problems.append(f"{where}: unknown template {c.get('template')}")
-        cid_ok = re.fullmatch(r"(P[12]|R[12])-(n|m)\d+(-k\d+)?-(f32|f16)-contig-t", str(cid))
+        cid_ok = re.fullmatch(
+            r"(P[12]|R[12]|N1)-(n|m)\d+(-k\d+)?-(f32|f16)-(contig|transpose)-t", str(cid))
         if not cid_ok:
             problems.append(f"{where}: case_id does not follow the documented pattern")
     return problems

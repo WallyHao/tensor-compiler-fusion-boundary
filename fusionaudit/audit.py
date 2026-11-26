@@ -192,7 +192,8 @@ def _shape_summary(shape: Any, case: dict[str, Any] | None = None) -> dict[str, 
         if len(dims) == 1:
             summary["N"] = dims[0]
         elif len(dims) == 2:
-            if template.startswith("R"):
+            kind = str((case or {}).get("kind", ""))
+            if kind == "reduction" or template.startswith("R") or template.startswith("N"):
                 summary["M"], summary["K"] = dims
             else:
                 summary["N"] = dims[0]
