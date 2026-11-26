@@ -19,6 +19,8 @@ import torch
 P1_A, P1_B = 1.25, 0.25
 P2_A, P2_B = 0.75, 0.25
 R2_A, R2_B = 0.75, 0.25
+# Followup RMSNorm template: inverse-RMS factor edge.
+N1_EPS = 1e-5
 
 
 # --------------------------------------------------------------------------
@@ -44,11 +46,18 @@ def r2(x: torch.Tensor) -> torch.Tensor:
     return t * R2_A + R2_B        # consumer
 
 
+def n1(x: torch.Tensor) -> torch.Tensor:
+    """RMSNorm fragment: row mean of squares -> inverse RMS factor."""
+    t = torch.mean(x.square(), dim=1)   # producer (t is fp32)
+    return torch.rsqrt(t + N1_EPS)      # consumer
+
+
 TEMPLATE_FNS: dict[str, Callable[[torch.Tensor], torch.Tensor]] = {
     "P1": p1,
     "P2": p2,
     "R1": r1,
     "R2": r2,
+    "N1": n1,
 }
 
 
@@ -87,11 +96,20 @@ def r2_consumer(t):  # noqa: ANN001
     return t * R2_A + R2_B
 
 
+def n1_producer(x):  # noqa: ANN001
+    return torch.mean(x.square(), dim=1)
+
+
+def n1_consumer(t):  # noqa: ANN001
+    return torch.rsqrt(t + N1_EPS)
+
+
 PRODUCER_CONSUMER: dict[str, tuple[Callable, Callable]] = {
     "P1": (p1_producer, p1_consumer),
     "P2": (p2_producer, p2_consumer),
     "R1": (r1_producer, r1_consumer),
     "R2": (r2_producer, r2_consumer),
+    "N1": (n1_producer, n1_consumer),
 }
 
 
@@ -122,6 +140,11 @@ def edge_spec(case) -> EdgeSpec:  # noqa: ANN001 - corpus.Case
         "P2": (("tanh",), ("mul", "add")),
         "R1": (("sum", "reduce"), ("relu",)),
         "R2": (("amax", "max", "reduce"), ("mul", "add")),
+        # t = mean(x.square(), dim=1) -> y = rsqrt(t + 1e-5). The producer may
+        # be lowered as aten.mean or as sum/div; the consumer's `add` bridges
+        # the two, so the producer search walks past it (strategies.
+        # _find_edge_fx_nodes picks the closest input matching producer_ops).
+        "N1": (("mean", "div", "sum", "mul"), ("rsqrt",)),
     }[case.template]
     return EdgeSpec(
         template=case.template,
@@ -151,6 +174,8 @@ def reference64(case, x: torch.Tensor) -> torch.Tensor:  # noqa: ANN001
         return torch.relu(torch.sum(xd, dim=1))
     if case.template == "R2":
         return torch.amax(xd, dim=1) * R2_A + R2_B
+    if case.template == "N1":
+        return torch.rsqrt(torch.mean(xd.square(), dim=1) + N1_EPS)
     raise KeyError(case.template)
 
 

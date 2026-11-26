@@ -30,8 +30,11 @@ def normalize_case_filter(spec: str | None, catalog: list[dict]) -> list[str]:
             continue
         if token in by_id:
             wanted.add(token)
-        elif token.upper() in ("P1", "P2", "R1", "R2"):
+        elif token.upper() in ("P1", "P2", "R1", "R2", "N1"):
             wanted.update(c["case_id"] for c in catalog if c["template"] == token.upper())
+        elif token in ("anchor", "long", "layout", "rmsnorm"):
+            # followup group selectors (plan/followup-3090)
+            wanted.update(c["case_id"] for c in catalog if c.get("group") == token)
         elif token in ("P", "ELEM"):
             wanted.update(c["case_id"] for c in catalog if c["template"].startswith("P"))
         elif token in ("R", "RED"):

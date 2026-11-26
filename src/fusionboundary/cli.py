@@ -63,6 +63,12 @@ def _worker_env(cache_dir: str, extra: dict[str, str] | None = None) -> dict[str
 
 
 def _select_cases(args: argparse.Namespace) -> list[corpus.Case]:
+    if getattr(args, "followup", False):
+        if getattr(args, "pilot", False):
+            return corpus.followup_pilot_cases()
+        ids = getattr(args, "case", None) or []
+        if not ids:
+            return corpus.followup_cases()
     if getattr(args, "pilot", False):
         return corpus.pilot_cases()
     if getattr(args, "all", False):
@@ -75,8 +81,8 @@ def _select_cases(args: argparse.Namespace) -> list[corpus.Case]:
         return cases
     ids = getattr(args, "case", None) or []
     if not ids:
-        raise SystemExit("select cases with --pilot, --all or --case ID (repeatable)")
-    index = corpus.corpus_index()
+        raise SystemExit("select cases with --pilot, --all, --followup or --case ID (repeatable)")
+    index = {**corpus.corpus_index(), **corpus.followup_index()}
     missing = [c for c in ids if c not in index]
     if missing:
         raise SystemExit(f"unknown case ids: {missing}")
@@ -100,7 +106,10 @@ def _strategies(args: argparse.Namespace) -> list[str]:
 # --------------------------------------------------------------------------
 def cmd_manifest(args: argparse.Namespace) -> int:
     run = _rundir(args.run)
-    summary = corpus.write_manifest(run.cases_jsonl)
+    if getattr(args, "followup", False):
+        summary = corpus.write_followup_manifest(run.cases_jsonl)
+    else:
+        summary = corpus.write_manifest(run.cases_jsonl)
     records.write_json(os.path.join(run.path, "cases.json"),
                        {"summary": summary, "generated": records.utc_now()})
     print(json.dumps(summary, indent=2))
@@ -154,6 +163,8 @@ def cmd_worker(args: argparse.Namespace) -> int:
         "gpu": records.gpu_snapshot() if device == "cuda" else None,
         "shape": list(case.shape),
         "dtype": case.dtype,
+        "layout": case.layout,
+        "input_stride": list(corpus.input_stride(tuple(case.shape), case.layout)),
         "t_shape": list(case.t_shape),
         "t_dtype": case.t_dtype,
         "guard": ({"symbol": result.gate_symbol, "edge": "t",
@@ -177,6 +188,9 @@ def cmd_worker(args: argparse.Namespace) -> int:
         "case_id": case.case_id,
         "strategy": args.strategy,
         "status": result.status,
+        "group": case.group,
+        "layout": case.layout,
+        "input_stride": list(corpus.input_stride(tuple(case.shape), case.layout)),
         "artifact_dir": _rel(_rundir(args.run), artifact_dir) if args.run else artifact_dir,
         "output_code": result.trace.get("output_code"),
         "output_code_sha256": (result.evidence or {}).get("output_code_sha256"),
@@ -245,7 +259,10 @@ def _versions() -> dict[str, Any]:
 def cmd_compile(args: argparse.Namespace) -> int:
     run = _rundir(args.run)
     if not os.path.exists(run.cases_jsonl):
-        corpus.write_manifest(run.cases_jsonl)
+        if getattr(args, "followup", False):
+            corpus.write_followup_manifest(run.cases_jsonl)
+        else:
+            corpus.write_manifest(run.cases_jsonl)
     cases = _select_cases(args)
     strategies_wanted = _strategies(args)
     if not os.path.exists(run.run_json):
@@ -591,8 +608,11 @@ def cmd_check_run(args: argparse.Namespace) -> int:
     rows = records.read_jsonl(run.variants_jsonl)
     checks = records.read_jsonl(run.checks_jsonl)
 
-    if cases and len(cases) != 72:
-        problems.append(f"cases.jsonl has {len(cases)} rows, expected 72")
+    followup_ids = set(corpus.followup_index())
+    manifest_is_followup = bool(cases) and all(c.case_id in followup_ids for c in cases)
+    expected_cases = len(followup_ids) if manifest_is_followup else 72
+    if cases and len(cases) != expected_cases:
+        problems.append(f"cases.jsonl has {len(cases)} rows, expected {expected_cases}")
     seen = set()
     by_case: dict[str, dict[str, dict[str, Any]]] = {}
     for row in rows:
@@ -701,6 +721,9 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("--case", action="append", help="case_id (repeatable)")
         p.add_argument("--pilot", action="store_true", help="the two fixed pilots")
         p.add_argument("--all", action="store_true", help="the full 72-case corpus")
+        p.add_argument("--followup", action="store_true",
+                       help="the 20-case followup plan (plan/followup-3090): "
+                            "all 20, or the 3 pilots with --pilot")
         p.add_argument("--templates", help="comma list, e.g. P1,R1")
         p.add_argument("--dtypes", help="comma list, e.g. float32")
         p.add_argument("--limit", type=int, default=0)
@@ -712,6 +735,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("manifest", help="write the 72-case manifest")
     p.add_argument("--run", default="runs/pilot")
+    p.add_argument("--followup", action="store_true",
+                   help="write the 20-case followup manifest instead")
     p.set_defaults(func=cmd_manifest)
 
     p = sub.add_parser("worker", help="internal: compile one variant in an isolated process")

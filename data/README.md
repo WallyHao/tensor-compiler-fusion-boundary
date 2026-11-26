@@ -50,6 +50,33 @@ tar -I zstd -xf data/fb-3090-phase1-runs-20261126.tar.zst -C /tmp/fb-evidence/30
 流程与判定口径见 `docs/status-phase1-compile.md`、`docs/measurement-status.md`、
 `docs/measurement-runbook.md`。
 
+## RTX 3090 补采（followup-3090）
+
+`plan/followup-3090` 的 20 配置（16 新 + 4 同期对照）在同一台 RTX 3090 上的完整原始数据与派生分析，
+排除可重建的编译缓存。
+
+```
+fb-3090-followup-20261126.tar.zst            953 KiB（6777 个条目）
+fb-3090-followup-20261126.tar.zst.sha256
+```
+
+含：`runs/followup-env-3090-*`、`followup-calib-3090-*`、`followup-pilot-3090-*`（编译试点）、
+`followup-cand-3090-*`（20×3 变体）、`followup-pilot-meas-3090-*`、`followup-transfer-prediction-*`
+（冻结预测 + `transfer-comparison.json`）、`followup-full-meas-3090-*`（正式 1200 对）、
+`followup-rerun-3090-*`（seed 2029 复跑），以及 `analysis/out/followup-full-meas-3090-*` 与
+`analysis/out/followup-rerun-3090-*` 的审计结果与图表。排除 `*/cache/`。
+
+执行记录、命令与结果表见 [docs/followup-3090-runbook.md](../docs/followup-3090-runbook.md)。
+复核：
+
+```bash
+sha256sum -c data/fb-3090-followup-20261126.tar.zst.sha256
+mkdir -p /tmp/fb-followup && zstd -dc data/fb-3090-followup-20261126.tar.zst | tar -xf - -C /tmp/fb-followup
+(cd /tmp/fb-followup/runs/followup-full-meas-3090-20261126T082429Z && sha256sum -c SHA256SUMS)
+python -m fusionaudit build --run /tmp/fb-followup/runs/followup-full-meas-3090-20261126T082429Z \
+  --out /tmp/fb-followup/audit --strict
+```
+
 ## 跨设备验证归档
 
 | 设备 | 归档 | 正式 run | 覆盖 |

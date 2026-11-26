@@ -15,6 +15,37 @@ def _dtype(name: str) -> torch.dtype:
     return getattr(torch, name)
 
 
+def _expected_stride(case) -> tuple[int, ...]:  # noqa: ANN001
+    from .corpus import input_stride
+
+    return tuple(input_stride(tuple(case.shape), getattr(case, "layout", "contig")))
+
+
+def _place_input(logical: torch.Tensor, case) -> torch.Tensor:  # noqa: ANN001
+    """Materialise logical values into the case's physical input layout."""
+    dt = case.torch_dtype()
+    if getattr(case, "layout", "contig") == "transpose":
+        m, k = case.shape
+        buf = torch.empty((k, m), dtype=dt)
+        buf.copy_(logical.to(dt).t())
+        return buf.t()
+    return logical.to(dt)
+
+
+def assert_input(case, x: torch.Tensor, input_id: str) -> None:  # noqa: ANN001
+    """Guard the invariant every strategy and both submit modes rely on."""
+    if tuple(x.shape) != tuple(case.shape):
+        raise AssertionError(
+            f"{case.case_id}/{input_id}: input shape {tuple(x.shape)} != {tuple(case.shape)}")
+    if x.dtype != case.torch_dtype():
+        raise AssertionError(
+            f"{case.case_id}/{input_id}: input dtype {x.dtype} != {case.torch_dtype()}")
+    want = _expected_stride(case)
+    if tuple(x.stride()) != want:
+        raise AssertionError(
+            f"{case.case_id}/{input_id}: input stride {tuple(x.stride())} != {want}")
+
+
 def iter_inputs(case, device: str | torch.device = "cpu") -> Iterator[tuple[str, torch.Tensor]]:  # noqa: ANN001
     """Yield (input_id, tensor) pairs: one per seed, then the all-zero input.
 
@@ -22,15 +53,23 @@ def iter_inputs(case, device: str | torch.device = "cpu") -> Iterator[tuple[str,
     dtype, then moved to ``device``. This makes the bit pattern independent of
     the device and of global RNG state, which the measurement owner relies on
     to reuse one fixed input across strategies and across processes.
+
+    ``layout == "transpose"`` generates the same *logical* values from the same
+    seed and copies them into a contiguous ``(K, M)`` buffer viewed as
+    ``(M, K)`` with stride ``(1, M)``. Shape, stride and dtype are asserted for
+    every yielded input.
     """
-    dt = case.torch_dtype()
     for seed in case.seeds:
         gen = torch.Generator(device="cpu").manual_seed(int(seed))
         base = torch.rand(case.shape, generator=gen, dtype=torch.float32)
-        x = (base * 2.0 - 1.0).to(dt)
-        yield f"seed{seed}", x.to(device)
+        x = _place_input(base * 2.0 - 1.0, case)
+        input_id = f"seed{seed}"
+        assert_input(case, x, input_id)
+        yield input_id, x.to(device)
     if case.zero_input:
-        yield "zeros", torch.zeros(case.shape, dtype=dt).to(device)
+        x = _place_input(torch.zeros(case.shape, dtype=torch.float32), case)
+        assert_input(case, x, "zeros")
+        yield "zeros", x.to(device)
 
 
 @dataclass
@@ -132,6 +171,9 @@ def check_case(case, run_fn, strategy: str, device: str | torch.device = "cpu") 
                 "argmax_abs_err": list(stats.argmax_abs) if stats.argmax_abs is not None else None,
                 "pass": bool(ok),
                 "reason": reason,
+                "input_shape": list(x.shape),
+                "input_stride": list(x.stride()),
+                "input_dtype": str(x.dtype).replace("torch.", ""),
             }
             if case.fp64_reference:
                 ref64 = templates.reference64(case, x)

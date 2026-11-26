@@ -13,16 +13,22 @@ from fb.util import sha256_file, write_jsonl_atomic
 
 CASES = [
     {
-        "case_id": "P1-n1024-f32-contig-t", "template": "P1", "shape": [1024],
-        "dtype": "float32", "layout": "contig", "edge": "t",
+        "case_id": "P1-n1024-f32-contig-t", "template": "P1", "kind": "elementwise",
+        "shape": [1024], "dtype": "float32", "layout": "contig", "edge": "t",
+        "producer": "x * 1.25 + 0.25", "consumer": "relu(t)",
         "t_shape": [1024], "t_dtype": "float32",
+        "out_shape": [1024], "out_dtype": "float32", "group": "P1",
+        "tolerance": {"atol": 1e-6, "rtol": 1e-5}, "fp64_reference": False,
         "logical_saved_bytes": 8192, "seeds": (17, 29, 43), "zero_input": True,
         "planned_status": "planned", "exclusion_reason": None,
     },
     {
-        "case_id": "R1-m16-k128-f32-contig-t", "template": "R1", "shape": [16, 128],
-        "dtype": "float32", "layout": "contig", "edge": "t",
+        "case_id": "R1-m16-k128-f32-contig-t", "template": "R1", "kind": "reduction",
+        "shape": [16, 128], "dtype": "float32", "layout": "contig", "edge": "t",
+        "producer": "sum(x, dim=1, dtype=float32)", "consumer": "relu(t)",
         "t_shape": [16], "t_dtype": "float32",
+        "out_shape": [16], "out_dtype": "float32", "group": "R1",
+        "tolerance": {"atol": 2e-4, "rtol": 1e-4}, "fp64_reference": True,
         "logical_saved_bytes": 128, "seeds": (17, 29, 43), "zero_input": True,
         "planned_status": "planned", "exclusion_reason": None,
     },
@@ -45,6 +51,15 @@ def build_corpus():
     import json, os
     here = os.path.dirname(__file__)
     rows = json.load(open(os.path.join(here, "cases.json")))
+    return [Case(r) for r in rows]
+
+def read_manifest(path):
+    import json
+    rows = []
+    with open(path) as fh:
+        for line in fh:
+            if line.strip():
+                rows.append(json.loads(line))
     return [Case(r) for r in rows]
 '''
 
