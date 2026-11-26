@@ -1,0 +1,73 @@
+cohort,scope,mode,threshold,n,fuse,equivalent,uncertain,split
+3090-base,all,direct,0.01,72,70,0,2,0
+3090-base,all,direct,0.02,72,68,3,1,0
+3090-base,all,direct,0.05,72,66,6,0,0
+3090-base,all,replay,0.01,72,33,4,35,0
+3090-base,all,replay,0.02,72,25,33,14,0
+3090-base,all,replay,0.05,72,19,50,3,0
+3090-base,three-GPU subset,direct,0.01,12,10,0,2,0
+3090-base,three-GPU subset,direct,0.02,12,10,2,0,0
+3090-base,three-GPU subset,direct,0.05,12,10,2,0,0
+3090-base,three-GPU subset,replay,0.01,12,2,3,7,0
+3090-base,three-GPU subset,replay,0.02,12,2,8,2,0
+3090-base,three-GPU subset,replay,0.05,12,2,9,1,0
+4090,all,direct,0.01,72,70,2,0,0
+4090,all,direct,0.02,72,68,4,0,0
+4090,all,direct,0.05,72,68,4,0,0
+4090,all,replay,0.01,72,43,2,27,0
+4090,all,replay,0.02,72,27,7,38,0
+4090,all,replay,0.05,72,8,43,21,0
+4090,three-GPU subset,direct,0.01,12,10,2,0,0
+4090,three-GPU subset,direct,0.02,12,10,2,0,0
+4090,three-GPU subset,direct,0.05,12,10,2,0,0
+4090,three-GPU subset,replay,0.01,12,6,2,4,0
+4090,three-GPU subset,replay,0.02,12,6,2,4,0
+4090,three-GPU subset,replay,0.05,12,2,7,3,0
+H800,all,direct,0.01,12,12,0,0,0
+H800,all,direct,0.02,12,12,0,0,0
+H800,all,direct,0.05,12,10,2,0,0
+H800,all,replay,0.01,12,11,0,1,0
+H800,all,replay,0.02,12,7,0,5,0
+H800,all,replay,0.05,12,2,7,3,0
+H800,three-GPU subset,direct,0.01,12,12,0,0,0
+H800,three-GPU subset,direct,0.02,12,12,0,0,0
+H800,three-GPU subset,direct,0.05,12,10,2,0,0
+H800,three-GPU subset,replay,0.01,12,11,0,1,0
+H800,three-GPU subset,replay,0.02,12,7,0,5,0
+H800,three-GPU subset,replay,0.05,12,2,7,3,0
+3090-followup,all,direct,0.01,20,20,0,0,0
+3090-followup,all,direct,0.02,20,20,0,0,0
+3090-followup,all,direct,0.05,20,18,2,0,0
+3090-followup,all,replay,0.01,20,15,2,3,0
+3090-followup,all,replay,0.02,20,13,3,4,0
+3090-followup,all,replay,0.05,20,7,12,1,0
+3090-followup,anchor,direct,0.01,4,4,0,0,0
+3090-followup,anchor,direct,0.02,4,4,0,0,0
+3090-followup,anchor,direct,0.05,4,4,0,0,0
+3090-followup,anchor,replay,0.01,4,2,1,1,0
+3090-followup,anchor,replay,0.02,4,2,2,0,0
+3090-followup,anchor,replay,0.05,4,2,2,0,0
+3090-followup,long,direct,0.01,8,8,0,0,0
+3090-followup,long,direct,0.02,8,8,0,0,0
+3090-followup,long,direct,0.05,8,6,2,0,0
+3090-followup,long,replay,0.01,8,7,0,1,0
+3090-followup,long,replay,0.02,8,5,0,3,0
+3090-followup,long,replay,0.05,8,1,6,1,0
+3090-followup,layout,direct,0.01,4,4,0,0,0
+3090-followup,layout,direct,0.02,4,4,0,0,0
+3090-followup,layout,direct,0.05,4,4,0,0,0
+3090-followup,layout,replay,0.01,4,4,0,0,0
+3090-followup,layout,replay,0.02,4,4,0,0,0
+3090-followup,layout,replay,0.05,4,2,2,0,0
+3090-followup,rmsnorm,direct,0.01,4,4,0,0,0
+3090-followup,rmsnorm,direct,0.02,4,4,0,0,0
+3090-followup,rmsnorm,direct,0.05,4,4,0,0,0
+3090-followup,rmsnorm,replay,0.01,4,2,1,1,0
+3090-followup,rmsnorm,replay,0.02,4,2,1,1,0
+3090-followup,rmsnorm,replay,0.05,4,2,2,0,0
+3090-rerun,all,direct,0.01,4,4,0,0,0
+3090-rerun,all,direct,0.02,4,4,0,0,0
+3090-rerun,all,direct,0.05,4,4,0,0,0
+3090-rerun,all,replay,0.01,4,1,1,2,0
+3090-rerun,all,replay,0.02,4,1,1,2,0
+3090-rerun,all,replay,0.05,4,0,4,0,0

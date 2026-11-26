@@ -1,0 +1,121 @@
+{
+  "meta": {
+    "id": "fusion-evaluation-overview",
+    "title": "Audited evaluation of one TorchInductor fusion edge",
+    "figure_kind": "whole-system",
+    "family": "systems",
+    "kind": "architecture",
+    "venue_style": "acm",
+    "column": "double",
+    "width_pt": 444,
+    "max_height_pt": 173,
+    "template": "custom",
+    "palette": "blue-outline",
+    "font": "helvetica",
+    "caption_draft": "Candidate construction and target-device evaluation for a single TorchInductor edge.",
+    "notes": "Full 394 pt article measure after scaling; two aligned target evaluation branches."
+  },
+  "nodes": [
+    {
+      "id": "fragment",
+      "label": "Fixed fragment and edge",
+      "sublabel": "Expression, shape, type and layout",
+      "kind": "module",
+      "role": "existing"
+    },
+    {
+      "id": "split",
+      "label": "Split candidate",
+      "sublabel": "Realize intermediate / Veto fusion at edge",
+      "kind": "module",
+      "role": "novel"
+    },
+    {
+      "id": "fused",
+      "label": "Fused candidate",
+      "sublabel": "Ordinary compilation / Kernel spans edge",
+      "kind": "module",
+      "role": "novel"
+    },
+    {
+      "id": "verify",
+      "label": "Validate the pair",
+      "sublabel": "Check outputs, generated code / and observed kernel launches",
+      "kind": "module",
+      "role": "novel"
+    },
+    {
+      "id": "predict",
+      "label": "Freeze predictions",
+      "sublabel": "Source fit / Target-device calibration / Independent split timing",
+      "kind": "module",
+      "role": "novel"
+    },
+    {
+      "id": "measure",
+      "label": "Time both candidates",
+      "sublabel": "Paired timing blocks / Direct CUDA submission / CUDA Graph replay",
+      "kind": "module",
+      "role": "novel"
+    },
+    {
+      "id": "score",
+      "label": "Score decisions",
+      "sublabel": "Fusion savings / Paired intervals / Decision labels / Regret",
+      "kind": "module",
+      "role": "novel"
+    }
+  ],
+  "edges": [
+    {
+      "id": "fragment-to-split",
+      "from": "fragment",
+      "to": "split"
+    },
+    {
+      "id": "fragment-to-fused",
+      "from": "fragment",
+      "to": "fused"
+    },
+    {
+      "id": "split-to-verify",
+      "from": "split",
+      "to": "verify"
+    },
+    {
+      "id": "fused-to-verify",
+      "from": "fused",
+      "to": "verify"
+    },
+    {
+      "id": "verify-to-predict",
+      "from": "verify",
+      "to": "predict"
+    },
+    {
+      "id": "verify-to-measure",
+      "from": "verify",
+      "to": "measure"
+    },
+    {
+      "id": "predict-to-score",
+      "from": "predict",
+      "to": "score"
+    },
+    {
+      "id": "measure-to-score",
+      "from": "measure",
+      "to": "score"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "build",
+      "text": "(a) Candidate construction"
+    },
+    {
+      "id": "evaluate",
+      "text": "(b) Target-device evaluation"
+    }
+  ]
+}

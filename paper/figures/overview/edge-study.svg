@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="444pt" height="183pt" viewBox="0 0 444 183" font-family="TeX Gyre Heros, Arial, sans-serif" fill="#1b303b" font-size="9">
+<title>One materialized edge, two verified executions</title>
+<defs>
+ <marker id="arrow" viewBox="0 0 5 6" refX="4.9" refY="3" markerWidth="5" markerHeight="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L5 3L0 6Z" fill="#435b66"/></marker>
+ <pattern id="matrix" width="6" height="5" patternUnits="userSpaceOnUse"><rect width="5" height="4" fill="#8db2c0"/></pattern>
+</defs>
+<rect width="444" height="183" fill="white"/>
+<g id="a:example" data-kind="annotation"><text x="4" y="12" font-size="12" font-weight="bold">One fusion edge</text><text x="105" y="12">Inverse RMS factor · RTX 3090 · 256 rows × 8,192 values</text></g>
+<path d="M4 21H440" stroke="#8499a3" stroke-width=".6"/>
+<g id="n:input" data-kind="node"><rect x="5" y="61" width="38" height="27" fill="url(#matrix)"/><text x="24" y="102" text-anchor="middle">FP32 input</text></g>
+<g fill="none" stroke="#435b66" stroke-width=".9" marker-end="url(#arrow)"><path d="M44 74H54V47H69"/><path d="M54 74V99H69"/></g>
+<text x="70" y="34" font-weight="bold">Split · two launches</text>
+<g id="n:reduction" data-kind="node"><rect x="70" y="38" width="76" height="22" fill="#edf1f3" stroke="#a6b4bb"/><text x="108" y="52" text-anchor="middle">Row mean of x²</text></g>
+<path d="M146 49H174 M219 49H246" stroke="#435b66" marker-end="url(#arrow)"/>
+<g id="n:handoff" data-kind="node"><rect x="175" y="41" width="43" height="16" fill="#f5d9bd" stroke="#a86128"/><path d="M183 41V57 M191 41V57 M199 41V57 M207 41V57" stroke="#a86128" stroke-width=".6"/><text x="197" y="69" text-anchor="middle" fill="#864820">Store / reload</text></g>
+<g id="n:epilogue" data-kind="node"><rect x="247" y="38" width="83" height="22" fill="#edf1f3" stroke="#a6b4bb"/><text x="288.5" y="52" text-anchor="middle">Add ε and rsqrt</text></g>
+<text x="70" y="85" font-weight="bold" fill="#155b78">Fused · one launch</text>
+<g id="n:fusion" data-kind="node"><rect x="70" y="90" width="260" height="22" fill="#d9ecf2" stroke="#357995"/><text x="200" y="104" text-anchor="middle">Row mean of x², add ε and rsqrt in one kernel</text></g>
+<g fill="none" stroke="#435b66" stroke-width=".9"><path d="M330 49H341V101H330 M341 75H354" /><path d="M341 75H354" marker-end="url(#arrow)"/></g>
+<g id="n:output" data-kind="node"><text x="360" y="72" font-weight="bold">256 factors</text><text x="360" y="85">One per row</text></g>
+<path d="M4 122H440" stroke="#8499a3" stroke-width=".6"/>
+<g id="a:measure" data-kind="annotation"><text x="4" y="138" font-weight="bold">Paired measurements</text><text x="4" y="152">30 blocks per mode</text><text x="4" y="165">Direct and graph replay</text></g>
+<path d="M128 131V170 M286 131V170" stroke="#becbd0"/>
+<g id="a:gain" data-kind="annotation"><text x="139" y="138" font-weight="bold">Observed saving per call</text><text x="139" y="157" font-size="13" font-weight="bold" fill="#17658B">1.588 µs</text><text x="139" y="170">Direct</text><text x="212" y="157" font-size="13" font-weight="bold" fill="#A94818">1.243 µs</text><text x="212" y="170">Replay</text></g>
+<g id="a:transfer" data-kind="annotation"><text x="297" y="138" font-weight="bold">Transfer evaluation</text><text x="297" y="152">Fit on RTX 3090</text><text x="297" y="165">Score on RTX 4090 and H800</text></g>
+</svg>

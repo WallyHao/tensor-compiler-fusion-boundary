@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 444 173" width="444pt" height="173pt"
+     font-family="TeX Gyre Heros, Helvetica, Arial, sans-serif" font-size="8" fill="#26323A">
+  <title>Audited evaluation of one TorchInductor fusion edge</title>
+  <rect width="444" height="173" fill="white"/>
+  <defs><marker id="head" markerWidth="5" markerHeight="5" refX="4.7" refY="2.5" orient="auto" markerUnits="userSpaceOnUse">
+    <path d="M 0 0 L 5 2.5 L 0 5 Z" fill="#56646F"/></marker></defs>
+  <g id="a:build" data-kind="annotation"><text x="8" y="13" font-size="10" font-weight="bold">(a) Candidate construction</text></g>
+  <g id="a:evaluate" data-kind="annotation"><text x="219" y="13" font-size="10" font-weight="bold">(b) Target-device evaluation</text></g>
+  <path d="M 8 18 H 191 M 219 18 H 436" stroke="#AAB4BB" stroke-width="0.5"/>
+  <g id="e:fragment-to-split" data-kind="edge" data-from="fragment" data-to="split">
+    <path d="M 51 55 V 71" fill="none" stroke="#56646F" stroke-width="0.7" marker-end="url(#head)"/>
+  </g>
+  <g id="e:fragment-to-fused" data-kind="edge" data-from="fragment" data-to="fused">
+    <path d="M 148 55 V 71" fill="none" stroke="#56646F" stroke-width="0.7" marker-end="url(#head)"/>
+  </g>
+  <g id="e:split-to-verify" data-kind="edge" data-from="split" data-to="verify">
+    <path d="M 51 114 V 132" fill="none" stroke="#56646F" stroke-width="0.7" marker-end="url(#head)"/>
+  </g>
+  <g id="e:fused-to-verify" data-kind="edge" data-from="fused" data-to="verify">
+    <path d="M 148 114 V 132" fill="none" stroke="#56646F" stroke-width="0.7" marker-end="url(#head)"/>
+  </g>
+  <g id="e:verify-to-predict" data-kind="edge" data-from="verify" data-to="predict">
+    <path d="M 176 141 H 203 V 58 H 219" fill="none" stroke="#56646F" stroke-width="0.7" marker-end="url(#head)"/>
+  </g>
+  <g id="e:verify-to-measure" data-kind="edge" data-from="verify" data-to="measure">
+    <path d="M 176 154 H 208 V 132 H 219" fill="none" stroke="#56646F" stroke-width="0.7" marker-end="url(#head)"/>
+  </g>
+  <g id="e:predict-to-score" data-kind="edge" data-from="predict" data-to="score">
+    <path d="M 339 70 H 361" fill="none" stroke="#56646F" stroke-width="0.7" marker-end="url(#head)"/>
+  </g>
+  <g id="e:measure-to-score" data-kind="edge" data-from="measure" data-to="score">
+    <path d="M 339 131 H 361" fill="none" stroke="#56646F" stroke-width="0.7" marker-end="url(#head)"/>
+  </g>
+  <g id="n:fragment" data-kind="node">
+    <rect x="23" y="26" width="153" height="29" rx="2" fill="#F6F8FA" stroke="#65727C" stroke-width="0.65"/>
+    <text x="99.5" y="37.7" font-size="9" font-weight="bold" text-anchor="middle">Fixed fragment and edge</text>
+    <text x="99.5" y="48.7" text-anchor="middle">Expression, shape, type and layout</text>
+  </g>
+  <g id="n:split" data-kind="node">
+    <rect x="8" y="71" width="86" height="43" rx="2" fill="#F6F8FA" stroke="#65727C" stroke-width="0.65"/>
+    <text x="51.0" y="84.4" font-size="9" font-weight="bold" text-anchor="middle">Split candidate</text>
+    <text x="51.0" y="95.4" text-anchor="middle">Realize intermediate</text>
+    <text x="51.0" y="106.4" text-anchor="middle">Veto fusion at edge</text>
+  </g>
+  <g id="n:fused" data-kind="node">
+    <rect x="105" y="71" width="86" height="43" rx="2" fill="#E5F1F9" stroke="#17658B" stroke-width="0.65"/>
+    <text x="148.0" y="84.4" font-size="9" font-weight="bold" text-anchor="middle">Fused candidate</text>
+    <text x="148.0" y="95.4" text-anchor="middle">Ordinary compilation</text>
+    <text x="148.0" y="106.4" text-anchor="middle">Kernel spans edge</text>
+  </g>
+  <g id="n:verify" data-kind="node">
+    <rect x="23" y="132" width="153" height="34" rx="2" fill="#F6F8FA" stroke="#65727C" stroke-width="0.65"/>
+    <text x="99.5" y="140.9" font-size="9" font-weight="bold" text-anchor="middle">Validate the pair</text>
+    <text x="99.5" y="151.9" text-anchor="middle">Check outputs, generated code</text>
+    <text x="99.5" y="162.9" text-anchor="middle">and observed kernel launches</text>
+  </g>
+  <g id="n:predict" data-kind="node">
+    <rect x="219" y="31" width="120" height="54" rx="2" fill="#F6F8FA" stroke="#65727C" stroke-width="0.65"/>
+    <text x="279.0" y="44.6" font-size="9" font-weight="bold" text-anchor="middle">Freeze predictions</text>
+    <text x="279.0" y="55.6" text-anchor="middle">Source fit</text>
+    <text x="279.0" y="66.6" text-anchor="middle">Target-device calibration</text>
+    <text x="279.0" y="77.6" text-anchor="middle">Independent split timing</text>
+  </g>
+  <g id="n:measure" data-kind="node">
+    <rect x="219" y="106" width="120" height="52" rx="2" fill="#F6F8FA" stroke="#65727C" stroke-width="0.65"/>
+    <text x="279.0" y="118.6" font-size="9" font-weight="bold" text-anchor="middle">Time both candidates</text>
+    <text x="279.0" y="129.6" text-anchor="middle">Paired timing blocks</text>
+    <text x="279.0" y="140.6" text-anchor="middle">Direct CUDA submission</text>
+    <text x="279.0" y="151.6" text-anchor="middle">CUDA Graph replay</text>
+  </g>
+  <g id="n:score" data-kind="node">
+    <rect x="361" y="60" width="75" height="81" rx="2" fill="#F6F8FA" stroke="#65727C" stroke-width="0.65"/>
+    <text x="398.5" y="81.8" font-size="9" font-weight="bold" text-anchor="middle">Score decisions</text>
+    <text x="398.5" y="92.8" text-anchor="middle">Fusion savings</text>
+    <text x="398.5" y="103.8" text-anchor="middle">Paired intervals</text>
+    <text x="398.5" y="114.8" text-anchor="middle">Decision labels</text>
+    <text x="398.5" y="125.8" text-anchor="middle">Regret</text>
+  </g>
+</svg>
