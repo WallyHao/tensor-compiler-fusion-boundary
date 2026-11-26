@@ -177,7 +177,7 @@ def _check_device(env: dict, expect: str | None, expect_uuid: str | None,
             file=sys.stderr,
         )
         if allow_mismatch:
-            print("  --allow-device-mismatch set: continuing; run is NOT 4090-eligible.",
+            print("  --allow-device-mismatch set: this run is for diagnostics only.",
                   file=sys.stderr)
     return check, ok
 
@@ -349,7 +349,7 @@ def _collect(args, purpose: str, default_cases: str, default_blocks: int | None)
             env = _env_or_capture(ctx, args.device_index, args.recapture_env, root)
             expected = args.expect_device
             if expected is None and formal:
-                expected = os.environ.get("FB_EXPECT_DEVICE", "RTX 4090")
+                expected = os.environ.get("FB_EXPECT_DEVICE", "RTX 3090 Ti")
             check, ok = _check_device(env, expected, args.expect_uuid,
                                       args.allow_device_mismatch, ctx)
             if not ok:
@@ -648,7 +648,7 @@ def _add_common(p, *, with_cases: bool = False, provider: bool = False):
 
 
 def build_parser() -> argparse.ArgumentParser:
-    ap = argparse.ArgumentParser(prog="fb", description="Fusion Boundaries 4090 measurement tool")
+    ap = argparse.ArgumentParser(prog="fb", description="Fusion Boundaries measurement tool")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     p = sub.add_parser("env", help="capture environment and verify the device")

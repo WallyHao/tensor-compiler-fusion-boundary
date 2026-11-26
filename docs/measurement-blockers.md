@@ -3,7 +3,7 @@
 The entries below record the original failure. The archived-wrapper loader now
 uses the verified code bytes instead of resolving the FX graph through Dynamo.
 The local two-case integration run validated the split and fused launches in both
-submission modes. The 4090 acceptance run remains pending.
+submission modes. Acceptance on the RTX 3090 Ti host remains pending.
 
 Date: 2026-11-25 (local RTX 4060 Laptop, torch 2.6.0+cu124, triton 3.2.0)
 

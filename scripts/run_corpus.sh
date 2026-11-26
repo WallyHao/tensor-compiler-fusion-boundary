@@ -5,7 +5,7 @@
 #   TEMPLATES=P1,P2 bash scripts/run_corpus.sh                 # subset
 #   STRATEGY=split,fused DTYPES=float32 bash scripts/run_corpus.sh
 #
-# Run it inside tmux/nohup on the 4090 instance; each case/strategy is its own
+# Run it inside tmux/nohup on the experiment host; each case/strategy is its own
 # process with an isolated Inductor cache, so a crash costs one variant.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)

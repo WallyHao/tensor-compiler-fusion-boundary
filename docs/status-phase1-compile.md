@@ -2,8 +2,8 @@
 
 版本：`torch 2.6.0+cu124`、`triton 3.2.0`（`requirements.lock`）。
 本地验证机：RTX 4060 Laptop（sm_89）。**本文件中的本机结果只证明流程与取证，
-不作为实验数据**；实验数据必须在 4090 上以同一命令重跑（见
-[4090-runbook.md](4090-runbook.md)）。
+不作为实验数据**；实验数据必须在 3090 Ti 上以同一命令重跑（见
+[3090ti-runbook.md](3090ti-runbook.md)）。
 
 ## 1. 试点结果
 
@@ -107,13 +107,13 @@ fused：单个 `triton_per_fused_relu_sum_0`，`ATen: [aten.sum, aten.relu]`，�
 ## 4. 运行命令
 
 ```bash
-# 0) 环境（4090 实例或本机）
+# 0) 环境（3090 Ti 主机或开发机）
 VENV=.venv bash scripts/setup_env.sh
 export PYTHONPATH=src
 # 非 Debian 系本机额外需要：LD_LIBRARY_PATH / TRITON_LIBCUDA_PATH / CC / CXX，见 runbook §6
 
 # 1) 72 case 清单
-.venv/bin/python -m fusionboundary manifest --run runs/pilot-4090
+.venv/bin/python -m fusionboundary manifest --run runs/pilot-3090ti
 
 # 2) 两个试点（编译 + 数值校验 + 证据 + 重载校验）
 bash scripts/run_pilot.sh                      # -> runs/pilot-<UTC>/
@@ -157,7 +157,7 @@ runs/<run_id>/cache/<case>/<strategy>/          隔离的 TORCHINDUCTOR_CACHE_DI
 runs/<run_id>/logs/<case>-<strategy>.log        该 worker 的完整日志
 ```
 
-## 6. 待 4090 实测（本机不做结论）
+## 6. 待 3090 Ti 实测（本机不做结论）
 
 - [ ] 两个试点的 `runs/` 产物（GPU 名、UUID、驱动、SM 数、L2 写入 `run.json`）
 - [ ] 72 case 三策略状态表与 `partition_map.json` 分布（`default_maps_to` 计数）
@@ -165,12 +165,12 @@ runs/<run_id>/logs/<case>-<strategy>.log        该 worker 的完整日志
 - [ ] fp16 归约样本（R1 累加 fp32、R2 保持 fp16）的 `fp64` 误差量级
 - [ ] 诊断控制在该机上的同一张副作用表
 - [ ] 与 B 的配对计时对齐（同一 `run_id` 的 `variants.jsonl` 被 `CandidateStore` 读取）
-- [ ] 4090 上的 `capture_replay()` 校验与 B 的 replay 模式
+- [ ] 3090 Ti 上的 `capture_replay()` 校验与 B 的 replay 模式
 
 ## 7. 已知边界
 
 - split 的"同一单图入口"成立：一个 `torch.compile` 产物、一次 Python 调用、wrapper 内
   两次 kernel 发射；`diag_graph_break` 的对照数据说明了违反该条时会多出编译图。
 - 3.2.0 之前的 Triton 或 2.6 之外的 torch 未验证：`compile_key.json` 会因版本不符拒绝加载。
-- 本机结果因 GPU 不同，`kernel_resources`（寄存器、shared、block）与 4090 可能不同；
+- 本机结果因 GPU 不同，`kernel_resources`（寄存器、shared、block）与 3090 Ti 可能不同；
   报告中的资源量必须以该机产物为准。

@@ -1,41 +1,57 @@
-# 4090 操作手册（编译/取证侧）
+# RTX 3090 Ti 操作手册（编译与取证）
 
-目标：在租用实例上用**同一版本 Inductor、同一单图入口**完成 default / split / fused
+在 3090 Ti 主机上用**同一版本 Inductor、同一单图入口**完成 `default` / `split` / `fused`
 三份产物，并交付两个试点的切边证据。计时由测量负责人执行（接口见
 [interface-for-b.md](interface-for-b.md)）。
 
-## 云端执行顺序
+## 主机执行顺序
 
-先在实例挂载持久卷，设置 `FB_RUN_ROOT` 指向卷内的 runs 目录。
+启动装有 3090 Ti 的主机，从其 `~/Workspace` 打开仓库。将 `FB_RUN_ROOT` 设为主机持久盘上的目录。
 用 `scripts/run_pilot.sh` 生成候选，按输出的 run ID 设置
 `FB_CANDIDATE_RUN="$FB_RUN_ROOT/对应的候选运行ID"`，再执行 `scripts/measure_pilot.sh`。
 确认 P1 和 R1 的 direct、replay 均取齐配对后，才执行 `scripts/run_corpus.sh`。
 将 `FB_CANDIDATE_RUN` 更新到全量候选运行目录，再执行 `scripts/measure_full.sh`。
-导出完整测量目录并验证 SHA256SUMS，本地可运行 `fusionaudit build` 重建分析。
+备份完整测量目录并验证 SHA256SUMS。可运行 `fusionaudit build` 重建分析。
 命令和配对验收详见[测量手册](measurement-runbook.md)与[分析手册](analysis-usage.md)。
 
 ## 0. 一次性环境
 
 ```bash
-git clone <repo> && cd tensor-compiler-fusion-boundary
-git checkout <commit>                     # 记录到 run.json 的就是这个 commit
-VENV=.venv bash scripts/setup_env.sh      # 生成 pip-freeze.txt；需要 uv
-# 若实例访问 PyPI 很慢：INDEX=https://mirrors.aliyun.com/pypi/simple/ bash scripts/setup_env.sh
-nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv
+cd ~/Workspace/tensor-compiler-fusion-boundary
+git rev-parse --short HEAD
+nvidia-smi --query-gpu=name,uuid,driver_version,memory.total --format=csv
+export FB_RUN_ROOT="$PWD/runs"
+export PYTHONPATH="$PWD/src"
 ```
 
-`setup_env.sh` 打印的 torch/triton/CUDA 版本必须与 `requirements.lock` 一致。
-GPU 必须显示 `NVIDIA GeForce RTX 4090`；否则停止，换实例（`run.json` 的 GPU 快照
-会记录 UUID，实例变化必须开新 run）。
+先确认 `nvidia-smi` 列出 `NVIDIA GeForce RTX 3090 Ti`。`run.json` 会记录 GPU UUID。更换设备后使用新的 run ID，并重新编译和校准。多卡主机先选定设备，再确保 `fb env` 记录的 `nvidia-smi` GPU UUID 与 PyTorch 的设备 UUID 一致。
+
+NixOS 上，如果 `gcc`/`g++` 不在 `PATH`，先运行 `nix-shell -p gcc`，并在该 shell 中继续。Triton 找不到驱动库时，设置以下变量：
+
+```bash
+export LD_LIBRARY_PATH="/run/opengl-driver/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export TRITON_LIBCUDA_PATH=/run/opengl-driver/lib
+export CC="$(command -v gcc)" CXX="$(command -v g++)"
+```
+
+在主机上创建环境并核验实际版本（需要 `uv`）：
+
+```bash
+VENV=.venv bash scripts/setup_env.sh
+.venv/bin/python -m fb env --run-root "$FB_RUN_ROOT" \
+    --run-id "env-3090ti-$(date -u +%Y%m%dT%H%M%SZ)" --expect-device "RTX 3090 Ti"
+```
+
+预期为 Python 3.12、PyTorch 2.6.0（CUDA 构建 12.4）、Triton 3.2.0 且 `cuda available True`。3090 Ti 的 CUDA 计算能力是 8.6。 [NVIDIA 设备表](https://developer.nvidia.com/cuda/gpus)
 
 ## 1. 冒烟（约 1 分钟）
 
 ```bash
-export PYTHONPATH=src
-.venv/bin/python -m fusionboundary manifest --run runs/smoke
-.venv/bin/python -m fusionboundary compile --run runs/smoke \
+SMOKE_RUN="$FB_RUN_ROOT/smoke-$(date -u +%Y%m%dT%H%M%SZ)"
+.venv/bin/python -m fusionboundary manifest --run "$SMOKE_RUN"
+.venv/bin/python -m fusionboundary compile --run "$SMOKE_RUN" \
     --case P1-n1024-f32-contig-t --strategy default,split,fused
-.venv/bin/python -m fusionboundary status --run runs/smoke
+.venv/bin/python -m fusionboundary status --run "$SMOKE_RUN"
 ```
 
 期望：三行 `valid`，split 两个 kernel、default/fused 一个 kernel。
@@ -43,9 +59,8 @@ export PYTHONPATH=src
 ## 2. 试点（两个试点 × 三策略 + 数值校验 + 证据）
 
 ```bash
-bash scripts/run_pilot.sh
-# 或显式 run id：
-RUN_ID=pilot-4090-$(date -u +%Y%m%dT%H%M%SZ) bash scripts/run_pilot.sh
+PILOT_ID="pilot-3090ti-$(date -u +%Y%m%dT%H%M%SZ)"
+RUN_ID="$PILOT_ID" bash scripts/run_pilot.sh
 ```
 
 产物：
@@ -63,8 +78,8 @@ runs/<run_id>/artifacts/<case>/partition_map.json
 判定：
 
 ```bash
-cat runs/<run_id>/evidence/pilot-evidence.md
-.venv/bin/python -m fusionboundary verify --run runs/<run_id> --pilot   # 走 B 的接口重载
+cat "$FB_RUN_ROOT/$PILOT_ID/evidence/pilot-evidence.md"
+.venv/bin/python -m fusionboundary verify --run "$FB_RUN_ROOT/$PILOT_ID" --pilot
 ```
 
 通过条件（缺一不可）：
@@ -76,6 +91,14 @@ cat runs/<run_id>/evidence/pilot-evidence.md
 3. `checks_failed=0`（4 组输入，fp32 逐元素 atol 1e-6；fp32 求和 atol 2e-4）；
 4. `graph_break_count=0` 且 `graph_count=1`（split 没有引入额外图/Python 调用）；
 5. `unrelated_partition_change=false`。
+
+编译试点通过后启动测量试点：
+
+```bash
+FB_CANDIDATE_RUN="$FB_RUN_ROOT/$PILOT_ID" bash scripts/measure_pilot.sh
+```
+
+按[测量手册的试点验收条件](measurement-runbook.md#4-试点p1--r1)核对校准和两种模式的配对结果，再进入全量运行。
 
 ## 3. 全量语料（72 case）
 
@@ -118,37 +141,27 @@ bash scripts/run_diag.sh
 
 这三项的目的就是**量化控制手段的代价**，它们的失败/副作用本身就是工作单要求的记录。
 
-## 5. 待 4090 实测量清单
+## 5. 待 RTX 3090 Ti 实测清单
 
-本仓库在本地只能完成到"编译、取证、数值"这一层；下列项**必须**在 4090 上执行后才能
-写入报告：
+报告引用以下 3090 Ti 主机上的实际产物与测量：
 
 - [ ] 两个试点的 `runs/<run_id>/` （default/split/fused 各一份 `output_code.py`）
-- [ ] 试点的 4 组输入数值校验：P1 fp32 atol 1e-6、R1 fp32 atol 2e-4（本机 4060 的
-      结果只能作为流程验证，不作为实验数据）
-- [ ] split 证据中 t 的写出/读回行号（4090 上的 `output_code.py` 与 sm_89 无关，但缓存
-      键、`num_warps`/grid 可能随 SM 数变化，需以该机产物为准）
+- [ ] 试点的 4 组输入数值校验。P1 fp32 atol 1e-6、R1 fp32 atol 2e-4
+- [ ] split 证据中 t 的写出/读回行号、实际 `num_warps` 与 grid
 - [ ] 72 case 的状态表与 `partition_map.json`
 - [ ] 默认策略的实际选择（`default_maps_to`）分布：`fused` 多少、`split` 多少、`distinct` 多少
 - [ ] 诊断控制的分区/图断裂副作用（`diag_*` 三行）
-- [ ] 与 B 的配对计时对齐：同一 `run_id` 下的 `variants.jsonl` 被 B 的 `CandidateStore` 读取
+- [ ] B 的候选来源、编译产物哈希与实际发射记录一致，校准和配对原始行可复算
 
-## 6. 本机（无 4090 时）复现
+## 6. 开发机复现
 
-同一套命令在本地 GPU 上也能跑，用来验证流程与取证，只是结果不得当作实验数据
-（`--purpose local-smoke-<gpu>` 写入 `run.json`）。非 Debian 系环境需要：
+可用其他 GPU 验证流程与取证。将 `--purpose local-smoke-<gpu>` 写入 `run.json`。
 
 ```bash
-# NixOS 等没有 /sbin/ldconfig、默认 PATH 里没有 C 编译器的机器
-export LD_LIBRARY_PATH=/run/opengl-driver/lib
-export TRITON_LIBCUDA_PATH=/run/opengl-driver/lib   # Triton 用它定位 libcuda.so.1
-export CC=$(command -v gcc) CXX=$(command -v g++)
-export PYTHONPATH=src
 .venv/bin/python -m fusionboundary pilot --run runs/pilot-local --purpose local-smoke
 ```
 
-本仓库已在 RTX 4060 Laptop（sm_89，torch 2.6.0+cu124 / triton 3.2.0）上跑通：72 case 全量
-编译、两个试点三种策略、数值校验与代码级取证。4090 上只需重跑同一命令。
+RTX 4060 Laptop 已跑通 72 个配置的编译、两个试点的三种策略、数值校验与代码级取证。正式产物在 3090 Ti 主机上重新生成。
 
 ## 7. 失败处理
 

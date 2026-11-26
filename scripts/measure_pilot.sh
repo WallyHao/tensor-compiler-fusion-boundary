@@ -6,8 +6,8 @@
 #
 #   FB_CANDIDATE_RUN=runs/pilot-20261125T120000Z bash scripts/measure_pilot.sh
 #
-# Optional: RUN_ID, FB_RUN_ROOT (persistent path on the cloud box),
-# FB_EXPECT_DEVICE (default "RTX 4090"), FB_EXPECT_UUID,
+# Optional: RUN_ID, FB_RUN_ROOT (persistent path on the experiment host),
+# FB_EXPECT_DEVICE (default "RTX 3090 Ti"), FB_EXPECT_UUID,
 # FB_CLOUD_PLATFORM/FB_INSTANCE_SPEC/FB_IMAGE_ID, BLOCKS (default 5).
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -22,7 +22,7 @@ if [[ -z "$CAND" || ! -f "$CAND/variants.jsonl" ]]; then
   exit 2
 fi
 RUN_ID=${RUN_ID:-pilot-meas-$(date -u +%Y%m%dT%H%M%SZ)}
-EXPECT=${FB_EXPECT_DEVICE:-RTX 4090}
+EXPECT=${FB_EXPECT_DEVICE:-RTX 3090 Ti}
 BLOCKS=${BLOCKS:-5}
 mkdir -p "$RUN_ROOT"
 

@@ -7,6 +7,8 @@ from __future__ import annotations
 import math
 from dataclasses import asdict, dataclass, field
 
+# Keep the serialized identifier for compatibility with existing runs. GPU
+# identity is recorded and checked separately from the protocol version.
 PROTOCOL_VERSION = "fb-4090-p1-v2"
 
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Local dry run (NOT 4090 data): reference candidates, 3 blocks, both modes.
+# Development dry run: reference candidates, 3 blocks, both modes.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"

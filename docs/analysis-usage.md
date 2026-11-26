@@ -10,7 +10,7 @@
   --out analysis/out/<run_id>
 ```
 
-正式 4090 run 使用同一条命令；`--strict` 在审计出现 error 时返回退出码 2。`--expected-blocks 30 --bootstrap 10000 --seed 2026` 为默认口径。禁止把 `--out` 指向原始 run 目录。
+正式 3090 Ti run 使用同一条命令；`--strict` 在审计出现 error 时返回退出码 2。`--expected-blocks 30 --bootstrap 10000 --seed 2026` 为默认口径。禁止把 `--out` 指向原始 run 目录。
 
 产物：
 

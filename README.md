@@ -1,4 +1,4 @@
-# Fusion Boundaries · phase 1 (RTX 4090)
+# Fusion Boundaries · phase 1 (RTX 3090 Ti)
 
 在固定版本的 TorchInductor 上，对**同一条合法切边** `t`（单消费者生产者→消费者边）生成
 三种编译产物，并交付可复核的代码级证据与数值校验：
@@ -11,9 +11,11 @@
 
 语料 72 case（P1/P2 各 12，R1/R2 各 24）；试点 `P1-n65536-f32-contig-t` 与
 `R1-m256-k512-f32-contig-t`。研究设计与工作单见 `docs/research-plan.md`、
-`plan/phase1-4090/`。
+`plan/phase1-3090ti/`。
 
 ## 快速开始
+
+在 3090 Ti 主机上先核对 GPU 与工具链，再跑编译和测量试点。[主机操作手册](docs/3090ti-runbook.md#0-一次性环境)
 
 ```bash
 VENV=.venv bash scripts/setup_env.sh     # torch==2.6.0 (cu124), triton 3.2.0
@@ -28,16 +30,16 @@ bash scripts/run_pilot.sh
 # 状态表
 .venv/bin/python -m fusionboundary status --run runs/pilot-<UTC>
 
-# 全量 72 case（4090，tmux 内）
+# 全量 72 case（3090 Ti，tmux 内）
 bash scripts/run_corpus.sh
 ```
 
-4090 上的完整步骤、判定条件与待实测清单：[docs/4090-runbook.md](docs/4090-runbook.md)。
+3090 Ti 上的完整步骤、判定条件与待实测清单：[docs/3090ti-runbook.md](docs/3090ti-runbook.md)。
 给测量负责人 B 的接口：[docs/interface-for-b.md](docs/interface-for-b.md)。
 产物与取证口径：[docs/artifacts.md](docs/artifacts.md)。
 实现选择与理由（为什么是 lowering realize + 调度器否决、为什么独立缓存、诊断控制）：
 [docs/design-decisions.md](docs/design-decisions.md)。
-当前交付状态、证据摘要与待 4090 实测清单：[docs/status-phase1-compile.md](docs/status-phase1-compile.md)。
+当前交付状态、证据摘要与待 3090 Ti 实测清单：[docs/status-phase1-compile.md](docs/status-phase1-compile.md)。
 一条边的两种编译结果（含切边图与源码片段）：[docs/edge-walkthrough.md](docs/edge-walkthrough.md)。
 
 ## 目录
@@ -56,7 +58,7 @@ fb/             B 的测量程序（环境、校准、配对计时、遥测、�
 fusionaudit/    C 的原始数据审计、分析与报告生成
 tests/           CPU 测试（含合成 fixture，标注 synthetic）
 scripts/         环境、试点、全量、诊断
-docs/            接口、产物口径、4090 手册
+docs/            接口、产物口径、3090 Ti 手册
 ```
 
 ## 当前状态
@@ -71,9 +73,9 @@ docs/            接口、产物口径、4090 手册
 | 诊断控制（clone / graph break / 全局禁融合） | 完成并归档副作用 |
 | B 的加载/调用接口 | 校验并加载归档 wrapper，普通和 replay 模式分别核验发射 |
 | 全量 72 case（本机 RTX 4060 冒烟） | **216 变体全部 valid，0 失败校验**，`runs/corpus-4060-local/` |
-| 4090 试点/全量 | **待实测**，见 runbook 第 5 节 |
+| 3090 Ti 试点/全量 | **待实测**，见 runbook 第 5 节 |
 
-本机结果不进入报告：GPU 型号、驱动与实例 UUID 都写进 `run.json`，分析侧按 run 区分。
+RTX 4060 Laptop 上的冒烟仅用于验证流程。正式 run 的 GPU 型号、驱动和设备 UUID 写入 `run.json`。
 
 ## 测量（B）：配对采集与数据验收
 
@@ -84,14 +86,14 @@ docs/            接口、产物口径、4090 手册
 
 ```bash
 export PYTHONPATH=$PWD/src
-export FB_RUN_ROOT=/data/fusion-boundaries/runs    # 持久卷（云实例）
+export FB_RUN_ROOT="$PWD/runs"                     # 3090 Ti 主机上的持久盘
 export FB_CANDIDATE_RUN="$FB_RUN_ROOT/你的候选运行ID"
 
 # 试点：P1+R1，两阶段（先暂停再恢复，验证不重复计入）
 FB_CANDIDATE_RUN=$FB_CANDIDATE_RUN bash scripts/measure_pilot.sh
 
 # 正式：脱离终端，全量 72 case，每 case/mode 30 个配对 block
-cd ~/tensor-compiler-fusion-boundary && mkdir -p "$FB_RUN_ROOT" && \
+mkdir -p "$FB_RUN_ROOT" && \
 FB_CANDIDATE_RUN=$FB_CANDIDATE_RUN setsid nohup bash scripts/measure_full.sh \
   > "$FB_RUN_ROOT/full-launch.log" 2>&1 < /dev/null &
 
@@ -116,4 +118,4 @@ C 的最小 synthetic 配对样例：`fixtures/measurement-synthetic/`（所有�
 ```
 
 测量目录包含可随原始数据导出的编译证据，复制整目录后可在本地重建报告。
-正式结果以 4090 的两个试点通过后的数据为准。[分析手册](docs/analysis-usage.md)
+正式结果以 3090 Ti 的两个试点通过后的数据为准。[分析手册](docs/analysis-usage.md)

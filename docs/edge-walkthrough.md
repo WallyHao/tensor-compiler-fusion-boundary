@@ -2,7 +2,7 @@
 
 对象：`P1-n65536-f32-contig-t`，s 表达式 `t = x*1.25+0.25; y = relu(t)`，fp32，连续布局。
 数据来自 `runs/pilot-4060-local/artifacts/P1-n65536-f32-contig-t/`（本地 4060 冒烟；
-4090 上以同一命令重跑，行号可能变，判定字段不变）。
+3090 Ti 上以同一命令重跑，行号可能变，判定字段不变）。
 
 ```mermaid
 graph LR

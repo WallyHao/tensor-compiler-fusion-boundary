@@ -231,7 +231,7 @@ def inductor_config_snapshot() -> dict[str, Any]:
 # run layout
 # --------------------------------------------------------------------------
 class RunDir:
-    """runs/<run_id>/ layout from plan/phase1-4090/04-data.md."""
+    """runs/<run_id>/ layout from plan/phase1-3090ti/04-data.md."""
 
     def __init__(self, root: str, run_id: str):
         self.root = os.path.abspath(root)

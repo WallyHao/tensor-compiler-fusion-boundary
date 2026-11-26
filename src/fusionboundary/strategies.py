@@ -1,6 +1,6 @@
 """default / split / fused compilation of the same single graph.
 
-Invariants (work order plan/phase1-4090/02-candidates.md):
+Invariants (work order plan/phase1-3090ti/02-candidates.md):
 
 * every strategy compiles the *same* function object with the *same* Inductor
   config; the only difference is the fusion-admission guard;

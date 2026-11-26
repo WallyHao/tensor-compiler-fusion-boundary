@@ -1,7 +1,7 @@
 # Measurement status (2026-11-25)
 
-Scope: B (measurement owner). This file reports what actually ran. **No 4090 data
-exists yet**; local RTX 4060 numbers are pipeline evidence only.
+Scope: B (measurement owner). This file reports what actually ran. The RTX 4060 numbers are pipeline evidence only. The RTX 3090 Ti
+pilot and full measurements are pending.
 
 ## Completed locally
 
@@ -23,7 +23,7 @@ Archived, checksummed, non-reportable:
   every row `synthetic: true`; consumed by C's `fusionaudit build` with
   **0 errors** and 4 case/mode results.
 
-## Calibration (local 4060, must be redone on the 4090)
+## Calibration (local 4060, redo on the RTX 3090 Ti)
 
 From `runs/pilot-adapter-local2/calibration_fit.json` (L2 = 32 MiB):
 
@@ -34,8 +34,8 @@ From `runs/pilot-adapter-local2/calibration_fit.json` (L2 = 32 MiB):
 | BW main | 225.6 GB/s, sizes 64/128/256 MiB |
 
 Raw rows: `calibration.jsonl` (80 direct-launch, 80 replay, 420 bandwidth rows),
-recomputable by `fb verify`. The 4090 has 72 MiB L2; the sweep extends to 256 MiB
-so the three main sizes can exceed L2.
+recomputable by `fb verify`. The current sweep extends to 512 MiB and uses
+the measured device L2 to select sizes.
 
 ## Historical blockers
 
@@ -46,7 +46,7 @@ so the three main sizes can exceed L2.
    profiles the loaded program and refuses to time it (`prepare_error`), so no
    wrong split row exists.
 3. **Full corpus not compiled yet.** A's run only has the two pilots; 70/72
-   cases have no candidate rows. On the 4090, A must compile all 72 first.
+   cases have no candidate rows. Formal collection requires a fresh 72-case candidate run on the RTX 3090 Ti.
 
 ## Expected full-run accounting
 
@@ -68,7 +68,7 @@ FB_CANDIDATE_RUN=$FB_RUN_ROOT/pilot-YYYYmmddTHHMMSSZ bash scripts/measure_pilot.
 Full, detached:
 
 ```bash
-cd ~/tensor-compiler-fusion-boundary && mkdir -p "$FB_RUN_ROOT" && \
+cd ~/Workspace/tensor-compiler-fusion-boundary && mkdir -p "$FB_RUN_ROOT" && \
 FB_CANDIDATE_RUN=$FB_RUN_ROOT/full-YYYYmmddTHHMMSSZ setsid nohup \
   bash scripts/measure_full.sh > "$FB_RUN_ROOT/full-launch.log" 2>&1 < /dev/null &
 ```
@@ -82,5 +82,5 @@ wrappers, actual kernel-launch checks, both submission modes, and numerical
 validation. The collector paused after 2 paired blocks and resumed to 16/16
 valid pairs. Strict analysis produced four case/mode results with no audit
 errors or warnings. This was a development smoke run with external GPU activity
-permitted and telemetry disabled. The 4090 remains the target for calibrated,
-telemetry-enabled pilot and formal measurements.
+permitted and telemetry disabled. The RTX 3090 Ti host is the target for the calibrated pilot and formal
+measurements with telemetry enabled.
