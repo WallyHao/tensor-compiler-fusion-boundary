@@ -19,6 +19,10 @@ PDF 本身不入库（见 `.gitignore`），本表是索引；按 DOI/arXiv 链�
 | `redfuser-arxiv26.pdf` | RedFuser: An Automatic Operator Fusion Framework for Cascaded Reductions on AI Accelerators | arXiv:2603.10026 (2026) | 级联归约的自动融合；与“epilogue 继承归约 tile”直接对应 |
 | `megakernel-arxiv26.pdf` | One Megakernel is Not Enough: Predicting Where to Cut for Streaming Inference | arXiv:2610.35336 (2026) | 流式推理的切分预测；正文已引 |
 
+## 对照分析
+
+- `style-structure-comparison.md`：手稿与 DNNFusion (PLDI'21)、AStitch (ASPLOS'22)、Korch (ASPLOS'24) 的章节结构、篇幅分配、行文风格与表格使用对照；含 P0–P2 修改清单。
+
 ## 版式参照
 
 | 文件 | 内容 | 说明 |
