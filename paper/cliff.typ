@@ -1,0 +1,82 @@
+= A split-favored region in a reduction epilogue <sec-cliff>
+
+The 72-case grid cannot produce a split-favored interval by construction. In the archived
+configurations of both RTX devices, the split and fused candidates share the producer
+kernel's block shape, warp count and stage count; they differ by at most four registers.
+Splitting therefore removes a launch, adds the write and read of $t$, and leaves the
+producer's schedule unchanged, so the fused side keeps the better schedule and pays for
+it only in the handoff. A split-favored case requires the opposite: moving the consumer
+into the producer must change the producer's schedule enough to outweigh that handoff.
+We built a family in which the consumer's work grows with one parameter while the edge
+remains a single intermediate.
+
+== The measured region
+
+The family and its protocol are described in @sec-methods-stress. Of 24 configurations,
+10 favored splitting, 13 favored fusion and one was inconclusive (@fig-cliff). Splitting
+won for $M in {512, 1024}$, $K = 8192$, FP32 and $B >= 3$. The largest fusion loss was at
+$M = 1024, B = 8$: 66.42 µs fused against 38.42 µs split, a saving of 28.00 µs (95%
+interval 27.86–28.14 µs), or 72.9% of split latency. At $B = 3$ and $B = 5$ the intervals
+were −8.70 µs (−8.78 to −8.62) and −20.42 µs (−20.52 to −20.31). The crossover lies
+between $B = 2$ (+1.89 µs, +6.4%) and $B = 3$.
+
+#figure(
+  placement: none,
+  image("figures/cliff-saving.svg", width: 100%, alt: "Two panels plot the split-minus-fused time against the number of shifted reads B. For M=1024 the relative saving falls from +25% to -73% between B=2 and B=8; the absolute panel runs from +7 to -28 microseconds. M=512 stays near or below zero, while M=2048 and M=4096 remain between +18% and +29%."),
+  caption: [Fusion saving in the stress family on the RTX 4090. Markers show the split-minus-fused time and whiskers the paired 95% intervals; filled markers are split-favored labels, open markers fusion-favored or inconclusive ones. The left panel gives the fraction of split latency, the right panel microseconds per call. All series use FP32 and $K = 8192$; color identifies the row count $M$.],
+) <fig-cliff>
+
+The region is narrow and not monotone. At $M = 256, B = 5$ fusion won by 11.38 µs
+(40.2%). At $M = 2048$ it won by 48.70, 37.16 and 36.65 µs at $B = 5, 8, 12$, and at
+$M = 4096, B = 5$ by 119.62 µs (28.7%); the launch-configuration cap that appears at
+$B >= 8$ did not reverse the sign at either size. Changing the reduction length or the
+type also removes the region: $M = 1024, K = 2048, B = 5$ favored fusion by 12.21 µs,
+$K = 4096$ was inconclusive (+1.11 µs, interval −0.98 to 3.52), and FP16 at the same
+$M, K, B$ favored fusion by 6.77 µs. The region is an intersection of conditions rather
+than a threshold in one variable.
+
+== Why the fused kernel loses
+
+The fused kernel runs the epilogue in the reduction's launch configuration: one program
+per row, `XBLOCK = 1`, 16 warps. The split consumer is a separate pointwise kernel with
+`XBLOCK = 1024`, four warps, and a grid that grows with $M K$. At $M = 1024, K = 8192$
+the profiled self times per call were 20.96 µs for the fused kernel at $B = 0$, against
+8.77 µs for the split producer and 18.37 µs for its consumer. At $B = 3$ the three values
+were 37.15, 9.02 and 19.09 µs; at $B = 5$, 50.26, 8.76 and 20.55 µs; and at $B = 8$,
+65.18, 8.88 and 26.97 µs. The producer time is flat at about 9 µs. The split consumer
+grows by about 1 µs per shifted read; the fused kernel grows by about 5 µs. Moving the
+epilogue into the reduction therefore multiplies the cost of each additional read by
+roughly five, and the crossover follows when the fusion saving on the handoff no longer
+covers that difference.
+
+Two mechanisms produce the difference. First, the epilogue's parallelism is tied to the
+number of rows rather than to the number of elements: the fused grid has $M$ programs,
+whereas the split consumer's grid has $M K / 1024$. The same epilogue that runs as a
+full-width pointwise kernel in the split candidate is serialized after the reduction in
+the fused one. Second, the reduction heuristic reacts to the counters of the fused
+kernel: when $M >= 1024$ and `num_load + num_reduction` reaches 10, `_reduction_configs`
+marks the kernel register-intensive, lowers `MAX_RBLOCK` from 2048 to 1024 and caps the
+warp count at 8 instead of 16, and a post-compile repair can halve `RBLOCK` again. The
+fused kernel crossed that threshold at $B = 7$ (nine loads plus the reduction) and
+selected `RBLOCK = 512` at $B = 10$, while the split producer keeps one load and one
+reduction and remains at `RBLOCK = 2048`, 16 warps. A separate register path appears at
+$B = 6$: the fused kernel needs 55 registers and falls to two-thirds occupancy, whereas
+the split producer needs 26 and stays at full occupancy.
+
+Neither path alone explains the sign. At $M = 4096, B = 8$ the fused kernel is capped to
+`RBLOCK = 1024` and 8 warps with occupancy 0.83, yet it is 97.0 µs faster than the split.
+With 4096 programs the fused epilogue's reuse of each row stays inside one kernel, and
+the split consumer re-reads the input after the producer has streamed it.
+
+== Scope
+
+The region was measured on one device, with one family, and without hardware counters;
+occupancy is launch-configuration capacity rather than observed active warps, and kernel
+times come from the profiler. The main grid's templates never reach the load threshold,
+with at most three loads per fused kernel, so its 72 fusion-favored labels are consistent
+with the mechanism rather than contradicted by it. We do not claim that fusion generally
+loses, nor that the four axes we varied are exhaustive. The claim is narrower and
+measured: a legal local edge can lose by a practical margin when the consumer's load
+count ties the epilogue to the reduction's tile, and that sign is not predicted by the
+logical intermediate bytes or by the static occupancy difference alone
+(@sec-prediction-x3).

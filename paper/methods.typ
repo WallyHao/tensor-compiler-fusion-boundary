@@ -25,7 +25,7 @@ Each candidate carries evidence of how the compiler implemented the edge. In spl
 
 Validation generates three pseudorandom CPU inputs (seeds 17, 29, 43) and an all-zero input, casts them to the specified type and verifies shape, type and stride; eager expressions provide the reference. Absolute and relative tolerances are $(2 times 10^(-4), 10^(-4))$ for R1 and N1, $(10^(-6), 10^(-5))$ for remaining FP32 cases, and $(0.002, 0.002)$ for remaining FP16 cases; reductions also record FP64 errors. After capture we replay the first seeded input, and the zero input exercises N1 near its largest output factor.
 
-== Measuring a pair
+== Measuring a pair <sec-methods-pair>
 
 Each configuration is timed under direct CUDA submission and CUDA Graph replay. Direct submits the wrapper on every iteration; replay captures one invocation and repeatedly replays the graph. Compilation and capture precede timing. Both modes use CUDA events over a batch on the device stream; elapsed time divided by invocations gives microseconds per call, including stream gaps. This measures steady repeated execution on prepared inputs and excludes input preparation or first-use capture.
 
@@ -40,3 +40,21 @@ Let $s_i$ and $f_i$ be per-call times in block $i$. Fusion's absolute benefit is
 Confidence intervals resample complete blocks with replacement 10,000 times @bootstrap, retaining both candidate times and recomputing the mean difference and split-time denominator; the 2.5th and 97.5th percentiles give 95% intervals. A relative interval above 2% favors fusion, below −2% favors splitting, and within $[-2%, 2%]$ supports practical equivalence; all others are indeterminate. We also evaluate labels at 1% and 5%.
 
 For layout contrasts, blocks are paired within each layout; the analysis resamples transposed and contiguous sets independently, estimates the benefit within each, and subtracts contiguous from transposed. Differences in relative reduction are in percentage points. These intervals assume independent blocks and carry no simultaneous-coverage adjustment; counts summarize measured cases and imply no sampling distribution over applications.
+
+== A stress family for the epilogue <sec-methods-stress>
+
+The third family targets the epilogue rather than the intermediate. For an $M times K$
+FP32 input the entry computes
+
+$ t_m = sum_k x_(m,k), quad y_(m,k) = t_m ( x_(m,k) + sum_(s=1)^B x_(m,k+s) ) $
+
+with row indices taken modulo $K$. Each of the $B$ shifted reads is a distinct load in
+the generated kernel, and $B = 0$ reduces to multiplying every column of a row by that row's sum. The split candidate
+is the same entry with $t$ materialized during lowering and the merge vetoed, as in the
+main grid. We vary $M in {256, 512, 1024, 2048, 4096}$, $K in {2048, 4096, 8192,
+32768}$, FP16 and FP32, and $B$ from 0 to 12, and time 30 paired blocks per
+configuration (60 at $B = 3$) with the protocol of @sec-methods-pair; the label rule is
+unchanged. The family was compiled and timed on one RTX 4090. Compilation evidence
+records each kernel's block shape, warps, registers, spills, occupancy and the
+`num_load`/`num_reduction` counters embedded in the generated code, and per-kernel self
+times come from the CUDA activity profiler.

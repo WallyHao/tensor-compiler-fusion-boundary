@@ -7,7 +7,7 @@
   shorttitle: "Local Kernel Fusion in TorchInductor",
   authors: ((name: "Junhao Liu", affiliation: none, email: none, orcid: none),),
   abstract: [
-    Fusing a producer with its consumer can eliminate a kernel launch and the write and read of an intermediate tensor. We measure the combined saving in TorchInductor by compiling both partitions of a single edge, verifying their generated kernels, and timing the two executions in paired blocks. Under direct CUDA submission, the lower bound of the 95% interval for relative savings exceeded 2% in the same 68 of 72 configurations on both the RTX 3090 and RTX 4090. Under CUDA Graph replay, 25 cases favored fusion on the RTX 3090 and 27 on the RTX 4090, with 13 in common. In a 20-case RTX 3090 reduction follow-up, the median saving fell from 2.36 µs per call under direct submission to 0.68 µs under replay. At fixed shape, transposing the input reduced the percentage saved in all four direct-submission contrasts even as the point estimates of the time saved rose. A model of launch and intermediate-transfer costs matched the compiler default on clear-case accuracy and mean regret in validation, including a 12-case H800 PCIe subset. The default fused every measured edge, and no case established a practical advantage for splitting.
+    Fusing a producer with its consumer can eliminate a kernel launch and the write and read of an intermediate tensor. We measure the combined saving in TorchInductor by compiling both partitions of a single edge, verifying their generated kernels, and timing the two executions in paired blocks. Under direct CUDA submission, the lower bound of the 95% interval for relative savings exceeded 2% in the same 68 of 72 configurations on both the RTX 3090 and RTX 4090. Under CUDA Graph replay, 25 cases favored fusion on the RTX 3090 and 27 on the RTX 4090, with 13 in common. In a 20-case RTX 3090 reduction follow-up, the median saving fell from 2.36 µs per call under direct submission to 0.68 µs under replay. At fixed shape, transposing the input reduced the percentage saved in all four direct-submission contrasts even as the point estimates of the time saved rose. A model of launch and intermediate-transfer costs matched the compiler default on clear-case accuracy and mean regret in validation, including a 12-case H800 PCIe subset. The default fused every measured edge, and no case in the grid established a practical advantage for splitting. A reduction stress family whose epilogue performs $B$ shifted reads produced one: splitting was faster by up to 28.0 µs (72.9%) for 512 and 1024 rows at $K = 8192$, while fusion still won outside that narrow region.
   ],
   keywords: ("kernel fusion", "TorchInductor", "GPU performance", "CUDA Graphs"),
 )
@@ -33,7 +33,7 @@ We examine two decisions. The first concerns the edge itself: how does the time 
 
 Two RTX devices execute the same grid of pointwise chains and reduction epilogues. The H800 PCIe executes a subset selected before collection on that device. A separate RTX 3090 experiment extends the reduction length, varies input layout and tests the inverse root-mean-square factor used in normalization. Four repeated configurations provide contemporaneous controls for the transposed inputs. Thus the cross-device comparison holds the expression fixed across hosts, whereas the layout comparison changes the stride at a fixed shape on one host.
 
-The distinction matters for interpreting the results. TorchInductor’s default fused every measured edge, so a clear win measures the cost of imposing a split and gives the default and an always-fuse policy the same decision. The grid contains no split-favored example on which a more selective policy could improve beyond the practical margin.
+The distinction matters for interpreting the results. TorchInductor’s default fused every measured edge, so a clear win measures the cost of imposing a split and gives the default and an always-fuse policy the same decision. The grid contains no split-favored example on which a more selective policy could improve beyond the practical margin. A stress family in which the consumer's work grows with the number of shifted reads does contain such cases (@sec-cliff); it changes what the boundary is, not the grid's labels.
 
 = Where the fusion decision occurs
 
@@ -48,6 +48,7 @@ The submission path provides a second distinction. CUDA launches are asynchronou
 #include "methods.typ"
 #include "prediction.typ"
 #include "findings.typ"
+#include "cliff.typ"
 #include "replication.typ"
 
 = Interpreting the measured boundary
@@ -75,6 +76,26 @@ Six replay point estimates on the original grids favored splitting (two on the R
 
 The intervals describe variation among paired blocks within one acquisition and cannot estimate variability across days or hosts; the four-case repeat only tests stability near the observed margin. Registers and shared memory describe assigned resources, and management telemetry places a run in device context @smi, but neither shows active warps or cache-level traffic. Those claims need performance counters @nsight. A wrong prediction locates a failed decision; it does not show that occupancy caused the error.
 
+== What the split-favored region changes
+
+The stress family changes what the grid's negative result means. Within the 72 original
+configurations the default's choice cannot be improved because the producer kernel is the
+same in both partitions; the split candidate differs only by a launch and a handoff. The
+family shows that this invariance belongs to those templates, not to fusion: when the
+consumer adds enough loads to the same kernel, the producer's launch configuration
+changes, and the split candidate can be faster by a practical margin (@sec-cliff).
+
+The region is also a caution for the cost model. The static occupancy difference is zero
+for eight of its ten split-favored configurations and positive for one fusion-favored
+configuration; the sign follows the epilogue's coupling to the reduction tile. A predictor
+that uses only launch count, logical bytes and occupancy therefore cannot locate the
+region. Its success on the original grid reflects the absence of such cases rather than
+the adequacy of the features.
+
+Finally, the region is narrow. The same family favors fusion at 256 rows, at 2048 rows
+and above, at the shorter and longer reduction lengths, and in FP16. Reporting the
+boundary requires the four axes, not a claim that fusion is generally harmful.
+
 == How much does a wrong decision cost?
 
 For a repeatedly called fragment, a wrong choice is paid on every invocation; counting errors treats a fraction of a microsecond and a hundred microseconds alike. On the RTX 4090 replay grid, always selecting split incurred mean regret 4.570 µs and maximum 127.732 µs, while always selecting fused incurred 0.00583 µs and 0.221 µs. The latter maximum is computed from measured mean latencies before imposing a margin, so it identifies a case to examine rather than a significant loss.
@@ -87,7 +108,7 @@ Finally, each configuration has weight one regardless of invocation frequency. T
 
 For these single-consumer TorchInductor fragments, eliminating a verified intermediate generally helped under direct submission, and replay reduced which advantages were large enough to resolve. The decrease in absolute benefit occurred in all 20 RTX 3090 follow-up configurations. For a large FP32 pointwise vector on the same device, fusion retained about 160 µs of benefit in either mode, so per-call microseconds and relative savings must be reported together.
 
-The two-term predictor matched the default on the measured targets; the resource term added two clear errors on RTX 4090 replay and reduced coverage in the follow-up. On this evidence there is no measured decision benefit to replacing the default with either predictor. The open question is whether a legal local fusion can lose by a practically significant margin under the same controls. A convincing case would need a verified pair, a split-favored interval and an independent repetition; the transition to a split-favored region remains unobserved.
+The two-term predictor matched the default on the measured targets, and the resource term added two clear errors on RTX 4090 replay while reducing coverage in the follow-up. On the original grid there is no measured decision benefit to replacing the default with either predictor. The stress family supplies the missing case: the resource term is zero for eight of its ten split-favored configurations and positive for one fusion-favored one, so neither the default nor the three-term model localizes the region. A legal local fusion can therefore lose by a practical margin, and the measured region bounds where a local decision can differ from the default. How often such epilogue coupling occurs in model graphs remains open.
 
 #pagebreak()
 #bibliography("references.bib", title: [References], style: "association-for-computing-machinery")
@@ -95,4 +116,4 @@ The two-term predictor matched the default on the measured targets; the resource
 #pagebreak()
 #heading(numbering: none)[Disclosure of AI Assistance]
 
-OpenAI Codex drafted and revised the English text throughout this report from the project's existing research plan, implementation, experimental records and results. AI agents checked numerical statements against the archived summaries, prepared bibliographic entries and reviewed the methods and findings. Codex also assembled the Typst source, drew the workflow diagram with FigGenie, scripted the data plots from the audited experiment tables, and checked the compiled document. The measurements reported here come from the project archives and predate preparation of this manuscript.
+OpenAI Codex drafted and revised the English text throughout this report from the project's existing research plan, implementation, experimental records and results. AI agents checked numerical statements against the archived summaries, prepared bibliographic entries and reviewed the methods and findings. Codex also assembled the Typst source, drew the workflow diagram with FigGenie, scripted the data plots from the audited experiment tables, and checked the compiled document. The measurements reported here come from the project archives and predate preparation of this manuscript. The stress-family section and the revised boundary discussion were prepared in a later AI-assisted revision from the archived run and its audited table.

@@ -15,6 +15,7 @@ import csv
 import json
 import re
 import subprocess
+import sys
 from collections import Counter
 from math import log2
 from pathlib import Path
@@ -667,7 +668,74 @@ def paired_trace(rows):
     save(fig, "paired-trace")
 
 
-def main():
+CLIFF_COLORS = {256: "#B8C2C8", 512: "#56B4E9", 1024: "#0072B2",
+                2048: "#E69F00", 4096: "#D55E00"}
+
+
+def cliff_saving(rows):
+    data = {}
+    for row in rows:
+        if row["dtype"] != "float32" or int(row["K"]) != 8192:
+            continue
+        data.setdefault(int(row["M"]), []).append(row)
+
+    fig, axes = plt.subplots(
+        1, 2, figsize=(WIDTH, 2.55), sharex=True,
+        gridspec_kw={"wspace": 0.30},
+    )
+    axes[0].axhspan(-2, 2, color=BAND, zorder=0)
+    for ax in axes:
+        ax.axhline(0, color=MUTED, linewidth=0.7, zorder=1)
+        ax.yaxis.grid(True, color=GRID, linewidth=0.55)
+        ax.set_xlabel("Shifted reads in the epilogue $B$")
+
+    for m, series in sorted(data.items()):
+        series.sort(key=lambda r: int(r["B"]))
+        xs = [int(r["B"]) for r in series]
+        color = CLIFF_COLORS[m]
+        axes[0].plot(xs, [float(r["relative"]) * 100 for r in series],
+                     color=color, linewidth=0.7, zorder=2)
+        axes[1].plot(xs, [float(r["B_us"]) for r in series],
+                     color=color, linewidth=0.7, zorder=2)
+        for r, x in zip(series, xs):
+            split = r["label"] == "split"
+            lo, hi = float(r["rel_ci95_lo"]) * 100, float(r["rel_ci95_hi"]) * 100
+            axes[0].vlines(x, lo, hi, color=color, linewidth=0.8, zorder=3)
+            axes[0].plot(x, float(r["relative"]) * 100, marker="o", markersize=3.8,
+                         color=color, mfc=color if split else "white",
+                         mec=color, mew=0.8, linestyle="none", zorder=4)
+            lo, hi = float(r["B_ci95_lo"]), float(r["B_ci95_hi"])
+            axes[1].vlines(x, lo, hi, color=color, linewidth=0.8, zorder=3)
+            axes[1].plot(x, float(r["B_us"]), marker="o", markersize=3.8,
+                         color=color, mfc=color if split else "white",
+                         mec=color, mew=0.8, linestyle="none", zorder=4)
+
+    axes[0].set_ylabel("Relative saving (% of split)")
+    axes[1].set_ylabel("Absolute saving (µs/call)")
+    panel_title(axes[0], "Relative saving")
+    panel_title(axes[1], "Absolute saving")
+    axes[0].set_xticks(range(0, 15, 2))
+
+    handles = [
+        Line2D([], [], color=CLIFF_COLORS[m], marker="o", markersize=3.4,
+               markeredgecolor="white", markeredgewidth=0.4, linewidth=0.7,
+               label=f"$M={m}$")
+        for m in sorted(data)
+    ]
+    handles += [
+        Line2D([], [], color=MUTED, marker="o", markersize=3.4, linestyle="none",
+               mfc=INK, mec=INK, label="Split favored"),
+        Line2D([], [], color=MUTED, marker="o", markersize=3.4, linestyle="none",
+               mfc="white", mec=MUTED, label="Fusion favored / unresolved"),
+    ]
+    fig.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, 1.02),
+               ncol=7, frameon=False, fontsize=6.6, handletextpad=0.35,
+               handlelength=1.2, columnspacing=0.7)
+    fig.subplots_adjust(top=0.80)
+    save(fig, "cliff-saving")
+
+
+def set_style():
     plt.rcParams.update({
         "font.family": ["Linux Biolinum O", "DejaVu Sans"],
         "font.size": 8.5,
@@ -694,6 +762,10 @@ def main():
         "svg.fonttype": "path",
         "svg.hashsalt": "fusion-paper",
     })
+
+
+def main():
+    set_style()
     rows = read_table("case-results")
     followup_saving(rows)
     layout_effects(read_table("layout-contrasts"))
@@ -707,4 +779,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if "--cliff-only" in sys.argv:
+        set_style()
+        cliff_saving(read_table("cliff-results"))
+    else:
+        main()
