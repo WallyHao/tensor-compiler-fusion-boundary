@@ -1,5 +1,7 @@
 = A split-favored region in a reduction epilogue <sec-cliff>
 
+This section measures the family, explains why the fused kernel loses and bounds the claim.
+
 The 72-case grid cannot produce a split-favored interval by construction. In the archived
 configurations of both RTX devices, the split and fused candidates share the producer
 kernel's block shape, warp count and stage count; they differ by at most four registers.
@@ -26,7 +28,7 @@ between $B = 2$ (+1.89 µs, +6.4%) and $B = 3$.
   caption: [Fusion saving in the stress family on the RTX 4090. Markers show the split-minus-fused time and whiskers the paired 95% intervals; filled markers are split-favored labels, open markers fusion-favored or inconclusive ones. The left panel gives the fraction of split latency, the right panel microseconds per call. All series use FP32 and $K = 8192$; color identifies the row count $M$.],
 ) <fig-cliff>
 
-The region is narrow and not monotone. At $M = 256, B = 5$ fusion won by 11.38 µs
+We find the region narrow and not monotone. At $M = 256, B = 5$ fusion won by 11.38 µs
 (40.2%). At $M = 2048$ it won by 48.70, 37.16 and 36.65 µs at $B = 5, 8, 12$, and at
 $M = 4096, B = 5$ by 119.62 µs (28.7%); the launch-configuration cap that appears at
 $B >= 8$ did not reverse the sign at either size. Changing the reduction length or the

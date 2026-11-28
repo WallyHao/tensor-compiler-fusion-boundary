@@ -1,5 +1,7 @@
 = Experimental design
 
+This section defines the unit of comparison, the candidates, the timing protocol and the estimator. It then introduces a stress family used in @sec-cliff.
+
 == Workloads and selected edges
 
 The unit of comparison is a single intermediate $t$ with one producer and one consumer; each configuration fixes the expression, shape, element type, layout and edge. A split candidate materializes $t$; a fused candidate computes across it. Both return the same logical result through one compiled entry point, but the compiler chooses how each kernel performs its work, so elapsed-time differences include generated-code changes on both sides of the edge.
@@ -21,7 +23,7 @@ RTX 3090 and 4090 each cover all 72 original configurations; H800 PCIe covers 12
 
 Using PyTorch 2.6.0+cu124 and Triton 3.2.0, we compile the same function in three runs: default, fused and split. Default and fused use ordinary Inductor compilation; the default run records Inductor's partition. A fused candidate qualifies only if one kernel spans the edge. The split run materializes $t$: because Inductor can inline the affine producer of P1 before scheduling, a scheduler veto alone would leave both expressions in one kernel; the split implementation realizes $t$ during lowering and then vetoes the merge. This keeps one compiled graph and no Python call between producer and consumer.
 
-Each candidate carries evidence of how the compiler implemented the edge. In split, the producer must write $t$ with the expected shape and type and the consumer must read it; an allocation count alone would miss a consumer overwriting the storage it just read, so we inspect kernel bodies and buffer arguments. In fused, one kernel must span both computations without storing and reloading $t$. All measured configurations mapped to fused; an edge that ordinary compilation leaves split would need a separate fused candidate.
+Each candidate carries evidence of how the compiler implemented the edge. In split, the producer must write $t$ with the expected shape and type and the consumer must read it; an allocation count alone would miss a consumer overwriting the storage it just read, so we inspect kernel bodies and buffer arguments. In fused, one kernel must span both computations without storing and reloading $t$. All measured configurations mapped to fused; an edge that ordinary compilation leaves split would need a separate fused candidate. A fresh-process reload verifies the wrapper digest and the expected kernel names, because a numeric check cannot detect a loader that returns a fused program for a split artifact; Appendix A records the failure that motivated this check.
 
 Validation generates three pseudorandom CPU inputs (seeds 17, 29, 43) and an all-zero input, casts them to the specified type and verifies shape, type and stride; eager expressions provide the reference. Absolute and relative tolerances are $(2 times 10^(-4), 10^(-4))$ for R1 and N1, $(10^(-6), 10^(-5))$ for remaining FP32 cases, and $(0.002, 0.002)$ for remaining FP16 cases; reductions also record FP64 errors. After capture we replay the first seeded input, and the zero input exercises N1 near its largest output factor.
 

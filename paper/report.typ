@@ -7,7 +7,7 @@
   shorttitle: "Local Kernel Fusion in TorchInductor",
   authors: ((name: "Junhao Liu", affiliation: none, email: none, orcid: none),),
   abstract: [
-    Fusing a producer with its consumer can eliminate a kernel launch and the write and read of an intermediate tensor. We measure the combined saving in TorchInductor by compiling both partitions of a single edge, verifying their generated kernels, and timing the two executions in paired blocks. Under direct CUDA submission, the lower bound of the 95% interval for relative savings exceeded 2% in the same 68 of 72 configurations on both the RTX 3090 and RTX 4090. Under CUDA Graph replay, 25 cases favored fusion on the RTX 3090 and 27 on the RTX 4090, with 13 in common. In a 20-case RTX 3090 reduction follow-up, the median saving fell from 2.36 µs per call under direct submission to 0.68 µs under replay. At fixed shape, transposing the input reduced the percentage saved in all four direct-submission contrasts even as the point estimates of the time saved rose. A model of launch and intermediate-transfer costs matched the compiler default on clear-case accuracy and mean regret in validation, including a 12-case H800 PCIe subset. The default fused every measured edge, and no case in the grid established a practical advantage for splitting. A reduction stress family whose epilogue performs $B$ shifted reads produced one: splitting was faster by up to 28.0 µs (72.9%) for 512 and 1024 rows at $K = 8192$, while fusion still won outside that narrow region.
+    Fusing a producer with its consumer can eliminate a kernel launch and the write and read of an intermediate tensor. Fusion decisions are often justified by launch counts and logical bytes, leaving untested whether the fused kernel preserves the producer's schedule. We measure the combined saving in TorchInductor by compiling both partitions of a single edge, verifying their generated kernels, and timing the two executions in paired blocks. Under direct CUDA submission, the lower bound of the 95% interval for relative savings exceeded 2% in the same 68 of 72 configurations on both the RTX 3090 and RTX 4090. Under CUDA Graph replay, 25 cases favored fusion on the RTX 3090 and 27 on the RTX 4090, with 13 in common. In a 20-case RTX 3090 reduction follow-up, the median saving fell from 2.36 µs per call under direct submission to 0.68 µs under replay. At fixed shape, transposing the input reduced the percentage saved in all four direct-submission contrasts even as the point estimates of the time saved rose. A model of launch and intermediate-transfer costs matched the compiler default on clear-case accuracy and mean regret in validation, including a 12-case H800 PCIe subset. The default fused every measured edge, and no case in the grid established a practical advantage for splitting. A reduction stress family whose epilogue performs $B$ shifted reads produced one: splitting was faster by up to 28.0 µs (72.9%) for 512 and 1024 rows at $K = 8192$, while fusion still won outside that narrow region.
   ],
   keywords: ("kernel fusion", "TorchInductor", "GPU performance", "CUDA Graphs"),
 )
@@ -22,7 +22,6 @@ Consider the last two operations in a row reduction. One kernel computes a sum f
 
 #figure(
   image("figures/overview/overview.svg", width: 100%, alt: "A fixed fragment branches to split and fused compiler runs. After validation, independent split timing and target calibration feed frozen predictions, while direct and replay split–fused pairs supply the outcomes used to score the decisions."),
-  placement: none,
   caption: [Workflow for evaluating one TorchInductor fusion edge. Candidate validation checks numerical outputs, the generated implementation of the edge and the kernels launched on the device. Target predictions are frozen before paired timing.],
 ) <fig-overview>
 
@@ -35,9 +34,15 @@ Two RTX devices execute the same grid of pointwise chains and reduction epilogue
 
 The distinction matters for interpreting the results. TorchInductor’s default fused every measured edge, so a clear win measures the cost of imposing a split and gives the default and an always-fuse policy the same decision. The grid contains no split-favored example on which a more selective policy could improve beyond the practical margin. A stress family in which the consumer's work grows with the number of shifted reads does contain such cases (@sec-cliff); it changes what the boundary is, not the grid's labels.
 
+This paper makes three contributions. First, it defines a paired-block protocol that verifies the selected edge at the kernel level before timing, and reports intervals for both absolute and relative savings. Second, it measures where the saving survives graph replay, layout changes and device transfer, and identifies a reduction epilogue in which a legal split is faster by a practical margin. Third, it evaluates whether a device-calibrated predictor can beat the compiler default, and reports the cases in which it cannot.
+
+Section 2 locates the decision, Section 3 defines the protocol, Sections 5 and 6 report the grid and the stress family, Section 7 discusses the boundary and its limits, and Appendix A traces one result to the executable.
+
 = Where the fusion decision occurs
 
 Fusion is a scheduling choice: a compiler must establish legality, construct a combined implementation and decide whether to use it. TVM Relax groups operators for later compilation @relaxfuse; OpenXLA's priority fusion ranks candidates using device-specific cost estimates @priorityfusion @xlacost; FusionStitching generates fused kernels for memory-intensive computations with different parallel structures @fusionstitching; and streaming-inference work asks where to cut an inference region @megakernel. We narrow this to two executable partitions of one edge, so that each timed program can be verified before a latency difference is attributed to the cut.
+
+Fusion planning has been studied as a search over operator groupings. DNNFusion classifies operators by their input–output mapping and enumerates profitable groups @dnnfusion. AStitch opens a multi-dimensional stitching space for memory-intensive kernels @astitch. Korch decomposes operators into primitives and solves the orchestration problem with binary linear programming @korch. Neptune targets locality and parallelism when fusing GPU operators @neptune; Hidet fuses after scheduling @hidet; horizontal fusion combines independent kernels @hfuse; and RedFuser targets cascaded reductions @redfuser. These systems choose a plan. This paper holds the plan fixed at one verified edge and asks whether the fused kernel preserves the producer's schedule, an assumption that such choices often leave implicit.
 
 In the PyTorch compilation path, a caller supplies a Python function to the compiler, while the GPU backend can express tiled operations as Triton kernels @compile @inductor @triton. On the original RTX 3090 grid the pointwise and reduction templates reached the same final partition by different routes. In all 24 pointwise cases the producer was incorporated into its consumer during lowering. By the time the scheduler ran, a veto could no longer act on a separate producer node. In the 48 reduction cases, the scheduler combined the reduction with its epilogue. A one-kernel wrapper therefore identifies the final partition but does not identify the pass at which a split must be imposed.
 
@@ -49,26 +54,12 @@ The submission path provides a second distinction. CUDA launches are asynchronou
 #include "prediction.typ"
 #include "findings.typ"
 #include "cliff.typ"
-#include "replication.typ"
 
 = Interpreting the measured boundary
 
-== A pointwise counterpoint to the reductions
+== Threats to validity
 
-
-#figure(
-  image("figures/pointwise-scaling.svg", width: 100%, alt: "Two panels show the six FP32 vector lengths for the affine–ReLU and tanh–affine chains. At small lengths the replay markers are near zero. Both modes approach a 50% saving at the largest length for both chains."),
-  placement: none,
-  caption: [Relative fusion saving for contiguous FP32 pointwise chains on the RTX 3090. Markers show estimates and whiskers show per-configuration paired 95% intervals; solid and dashed segments follow direct submission and CUDA Graph replay. The shaded band marks the ±2% practical margin. The length axis is logarithmic (base 2).],
-) <fig-pointwise>
-
-The reduction follow-up eliminates an intermediate with one scalar per row. In the pointwise grid the intermediate grows with the full input. @fig-pointwise shows how the benefit varies across the sampled lengths. On the RTX 3090, consider P1 with a contiguous FP32 vector of length 1,024. The split and fused paths took 8.146 and 5.096 µs per call under direct submission. Under replay they took 7.958 and 7.880 µs. The replay estimate saved 0.98%, but its interval extended slightly beyond 2%. A decision rule based on the point estimate alone would call the variants equivalent. The interval rule leaves that decision open.
-
-Now keep the expression, type, layout and device fixed, and increase the vector length to 16,777,216. Under direct submission the split time was 321.424 µs and the fused time was 160.886 µs. Under replay the times were 324.411 and 164.274 µs. In absolute terms the saving was about 160 µs in either mode. The logical intermediate at this size occupies 64 MiB. Writing and reading it accounts for 128 MiB of logical accesses across the cut. Eliminating a kernel that moves an entire vector can therefore retain a substantial advantage even when replay makes submission cheaper. The timing and the generated access pattern support this explanation. Establishing how many bytes reached DRAM would require additional evidence.
-
-The intermediate lengths reveal a distinction the two endpoints alone obscure. At 524,288 FP32 elements, P1 under replay saved an estimated 1.40% (95% interval −0.88% to 3.23%). At the same length and precision, P2, whose producer computes a hyperbolic tangent, saved 10.09% (9.92% to 10.25%). Both splits pass a 2 MiB vector to the consumer. A rule that sees only the logical intermediate size must assign both cases the same decision, although the measured evidence for fusion differs. By 4,194,304 elements the two savings were close, 47.51% and 47.02%. These observations bound the comparison to the sampled lengths. They do not locate a length at which splitting wins.
-
-== Limits of the comparison
+We separate three limits: what the margin and interval measure, what the sample supports, and what the device telemetry does not show.
 
 The practical margin and the timing interval answer different questions. Moving the margin changes the minimum gain worth acting on; narrowing an interval changes what the experiment can resolve. A tight interval inside the equivalence band supports interchangeability at that tolerance, whereas a wide interval spanning the band and a substantial gain does not. This distinction matters most under replay, where the two RTX devices have similar fusion-win counts but very different unresolved counts.
 
@@ -78,7 +69,7 @@ The intervals describe variation among paired blocks within one acquisition and 
 
 == What the split-favored region changes
 
-The stress family changes what the grid's negative result means. Within the 72 original
+We read the stress family as changing what the grid's negative result means. Within the 72 original
 configurations the default's choice cannot be improved because the producer kernel is the
 same in both partitions; the split candidate differs only by a launch and a handoff. The
 family shows that this invariance belongs to those templates, not to fusion: when the
@@ -96,19 +87,19 @@ Finally, the region is narrow. The same family favors fusion at 256 rows, at 204
 and above, at the shorter and longer reduction lengths, and in FP16. Reporting the
 boundary requires the four axes, not a claim that fusion is generally harmful.
 
-== How much does a wrong decision cost?
-
-For a repeatedly called fragment, a wrong choice is paid on every invocation; counting errors treats a fraction of a microsecond and a hundred microseconds alike. On the RTX 4090 replay grid, always selecting split incurred mean regret 4.570 µs and maximum 127.732 µs, while always selecting fused incurred 0.00583 µs and 0.221 µs. The latter maximum is computed from measured mean latencies before imposing a margin, so it identifies a case to examine rather than a significant loss.
-
-Feature availability changes the question. In the RTX 3090 follow-up under replay, the two-term rule had zero observed regret on the 12 cases with complete resource metadata and on all 20 cases; the three-term rule had zero on the 12 it could score. A policy deployed for every call must still specify a fallback for the other eight, and crediting a successful fallback would evaluate a different policy.
-
-Finally, each configuration has weight one regardless of invocation frequency. Turning per-case regret into end-to-end saving requires call frequencies, the surrounding schedule and prediction overhead; a predictor that ties the default in steady-state latency has not yet recovered the cost of compiling alternatives and timing the split path.
-
+#pagebreak()
 = Conclusion
 
 For these single-consumer TorchInductor fragments, eliminating a verified intermediate generally helped under direct submission, and replay reduced which advantages were large enough to resolve. The decrease in absolute benefit occurred in all 20 RTX 3090 follow-up configurations. For a large FP32 pointwise vector on the same device, fusion retained about 160 µs of benefit in either mode, so per-call microseconds and relative savings must be reported together.
 
 The two-term predictor matched the default on the measured targets, and the resource term added two clear errors on RTX 4090 replay while reducing coverage in the follow-up. On the original grid there is no measured decision benefit to replacing the default with either predictor. The stress family supplies the missing case: the resource term is zero for eight of its ten split-favored configurations and positive for one fusion-favored one, so neither the default nor the three-term model localizes the region. A legal local fusion can therefore lose by a practical margin, and the measured region bounds where a local decision can differ from the default. How often such epilogue coupling occurs in model graphs remains open.
+
+Three extensions would test the boundary further: a second family whose consumer changes the producer's tile without adding loads, hardware counters that separate memory traffic from scheduling, and a device with a different reduction heuristic.
+
+#let appendix-section = article.appendix
+#appendix-section[
+  #include "replication.typ"
+]
 
 #pagebreak()
 #bibliography("references.bib", title: [References], style: "association-for-computing-machinery")
