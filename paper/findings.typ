@@ -7,7 +7,7 @@ This section answers four questions. (1) How much of the direct-submission savin
   table(
     columns: 4,
     align: (left, center, center, center),
-    table.header([Cohort], [Configurations], [Direct (F/E/U/S)], [Replay (F/E/U/S)]),
+    table.header([Cohort], [Configurations], [Direct (F/E/I/S)], [Replay (F/E/I/S)]),
     [RTX 3090 base], [72], [68 / 3 / 1 / 0], [25 / 33 / 14 / 0],
     [RTX 4090 base], [72], [68 / 4 / 0 / 0], [27 / 7 / 38 / 0],
     [RTX 3090 subset], [12], [10 / 2 / 0 / 0], [2 / 8 / 2 / 0],
@@ -15,7 +15,7 @@ This section answers four questions. (1) How much of the direct-submission savin
     [H800 subset], [12], [12 / 0 / 0 / 0], [7 / 0 / 5 / 0],
     [RTX 3090 follow-up], [20], [20 / 0 / 0 / 0], [13 / 3 / 4 / 0],
   ),
-  caption: [Fusion labels at the 2% margin. Each mode cell counts fusion-favored / equivalent / uncertain / split-favored configurations. The three subset rows use the 12 cases measured on all three devices.],
+  caption: [Fusion labels at the 2% margin. Each mode cell counts fusion-favored / equivalent / inconclusive / split-favored configurations. The three subset rows use the 12 cases measured on all three devices.],
 ) <tab-labels>
 
 == How much of the fusion benefit survives graph replay?

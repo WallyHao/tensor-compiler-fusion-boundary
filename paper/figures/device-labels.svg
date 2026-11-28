@@ -1859,7 +1859,7 @@ z
    </g>
   </g>
   <g id="text_30">
-   <!-- Green outline: same label.  Diagonal 72/72 (direct) and 27/72 (replay).  No split-favored cases. -->
+   <!-- Green outline: same label.  Diagonal 71/72 (direct) and 27/72 (replay).  No split-favored cases. -->
    <g style="fill: #6b7780" transform="translate(63.437266 167.9676) scale(0.07 -0.07)">
     <defs>
      <path id="LinBiolinumO-28" d="M 3494 749 
@@ -2060,6 +2060,30 @@ C 435 3520 416 3398 403 3302
 C 870 3366 1786 3373 2208 3360 
 z
 " transform="scale(0.015625)"/>
+     <path id="LinBiolinumO-12" d="M 2086 1210 
+L 2086 2835 
+C 2086 3526 2125 3782 2138 3872 
+C 2138 3904 2118 3904 2093 3904 
+C 1677 3770 1190 3520 691 3366 
+L 730 3181 
+C 1018 3213 1331 3283 1459 3283 
+C 1574 3283 1574 3027 1574 2797 
+L 1574 1210 
+C 1574 710 1568 365 1523 0 
+L 1530 -19 
+C 1530 -19 1709 0 1824 0 
+C 1952 0 2131 -19 2131 -19 
+L 2144 0 
+C 2099 384 2086 704 2086 1210 
+z
+" transform="scale(0.015625)"/>
+     <path id="LinBiolinumO-10" d="M 1875 4134 
+L 1613 4134 
+L 96 -378 
+L 358 -378 
+L 1875 4134 
+z
+" transform="scale(0.015625)"/>
      <path id="LinBiolinumO-13" d="M 1421 3539 
 C 1754 3539 2093 3232 2093 2778 
 C 2093 2515 2016 2176 1850 1926 
@@ -2082,13 +2106,6 @@ L 557 2944
 L 640 2938 
 C 730 3130 762 3258 928 3392 
 C 1056 3494 1242 3539 1421 3539 
-z
-" transform="scale(0.015625)"/>
-     <path id="LinBiolinumO-10" d="M 1875 4134 
-L 1613 4134 
-L 96 -378 
-L 358 -378 
-L 1875 4134 
 z
 " transform="scale(0.015625)"/>
      <path id="LinBiolinumO-9" d="M 282 1613 
@@ -2287,7 +2304,7 @@ z
     <use xlink:href="#LinBiolinumO-4d" transform="translate(1464.609375 0)"/>
     <use xlink:href="#LinBiolinumO-1" transform="translate(1489.8125 0)"/>
     <use xlink:href="#LinBiolinumO-18" transform="translate(1514.8125 0)"/>
-    <use xlink:href="#LinBiolinumO-13" transform="translate(1561.3125 0)"/>
+    <use xlink:href="#LinBiolinumO-12" transform="translate(1561.3125 0)"/>
     <use xlink:href="#LinBiolinumO-10" transform="translate(1607.8125 0)"/>
     <use xlink:href="#LinBiolinumO-18" transform="translate(1640.109375 0)"/>
     <use xlink:href="#LinBiolinumO-13" transform="translate(1686.609375 0)"/>

@@ -320,7 +320,7 @@ def device_labels(rows):
         )
     fig.text(
         0.5, 0.018,
-        "Green outline: same label.  Diagonal 72/72 (direct) and 27/72 (replay).  "
+        "Green outline: same label.  Diagonal 71/72 (direct) and 27/72 (replay).  "
         "No split-favored cases.",
         ha="center", va="bottom", fontsize=7.0, color=MUTED,
     )
