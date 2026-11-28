@@ -320,8 +320,8 @@ def device_labels(rows):
         )
     fig.text(
         0.5, 0.018,
-        "Green outline: same label.  Diagonal 71/72 (direct) and 27/72 (replay).  "
-        "No split-favored cases.",
+        "Green outline: same label.  Diagonal 71/72 (direct) and 27/72 (replay).\n"
+        "Shading: 0–72 configurations.  No split-favored cases.",
         ha="center", va="bottom", fontsize=7.0, color=MUTED,
     )
     save(fig, "device-labels")
@@ -389,15 +389,6 @@ def pointwise_scaling(rows):
             0.985, 0.105, "±2% equivalence",
             transform=ax.transAxes, ha="right", va="bottom",
             fontsize=6.9, color=MUTED,
-        )
-        largest = positions[-1]
-        ax.annotate(
-            "≈160 µs/call",
-            xy=(largest - 0.08, 49.8),
-            xytext=(largest - 1.55, 53.2),
-            ha="right", va="center",
-            fontsize=6.9, color=INK,
-            arrowprops={"arrowstyle": "-", "color": MUTED, "linewidth": 0.55},
         )
     axes[0].set_ylabel("Fusion saving (% of split latency)")
     mode_legend(fig, (0.5, 0.99), lines=True)
@@ -710,29 +701,266 @@ def cliff_saving(rows):
                          color=color, mfc=color if split else "white",
                          mec=color, mew=0.8, linestyle="none", zorder=4)
 
+    axes[0].axvline(2.5, color=MUTED, linewidth=0.6,
+                    linestyle=(0, (3, 2)), zorder=0)
+    axes[1].axvline(2.5, color=MUTED, linewidth=0.6,
+                    linestyle=(0, (3, 2)), zorder=0)
+    axes[0].text(2.65, 0.93, "crossover", transform=axes[0].get_xaxis_transform(),
+                 ha="left", va="top", fontsize=6.7, color=MUTED)
+    axes[0].text(8.8, -30, "−72.9%", fontsize=6.8,
+                 color=CLIFF_COLORS[1024],
+                 bbox={"facecolor": "white", "edgecolor": "none", "pad": 0.5})
+    axes[1].annotate(
+        "−28.0 µs", xy=(8, -28.0), xytext=(9.2, -10),
+        fontsize=6.8, color=CLIFF_COLORS[1024],
+        bbox={"facecolor": "white", "edgecolor": "none", "pad": 0.5},
+        arrowprops={"arrowstyle": "-", "color": MUTED, "linewidth": 0.55},
+    )
+
     axes[0].set_ylabel("Relative saving (% of split)")
     axes[1].set_ylabel("Absolute saving (µs/call)")
     panel_title(axes[0], "Relative saving")
     panel_title(axes[1], "Absolute saving")
     axes[0].set_xticks(range(0, 15, 2))
 
-    handles = [
+    m_handles = [
         Line2D([], [], color=CLIFF_COLORS[m], marker="o", markersize=3.4,
                markeredgecolor="white", markeredgewidth=0.4, linewidth=0.7,
                label=f"$M={m}$")
         for m in sorted(data)
     ]
-    handles += [
+    fill_handles = [
         Line2D([], [], color=MUTED, marker="o", markersize=3.4, linestyle="none",
                mfc=INK, mec=INK, label="Split favored"),
         Line2D([], [], color=MUTED, marker="o", markersize=3.4, linestyle="none",
                mfc="white", mec=MUTED, label="Fusion favored / unresolved"),
     ]
-    fig.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, 1.02),
-               ncol=7, frameon=False, fontsize=6.6, handletextpad=0.35,
-               handlelength=1.2, columnspacing=0.7)
-    fig.subplots_adjust(top=0.80)
+    first = fig.legend(handles=m_handles, loc="upper center",
+                       bbox_to_anchor=(0.5, 0.998), ncol=5, frameon=False,
+                       fontsize=6.8, handletextpad=0.35,
+                       handlelength=1.2, columnspacing=0.7)
+    fig.add_artist(first)
+    fig.legend(handles=fill_handles, loc="upper center",
+               bbox_to_anchor=(0.5, 0.935), ncol=2, frameon=False,
+               fontsize=6.8, handletextpad=0.35,
+               handlelength=1.2, columnspacing=0.9)
+    fig.subplots_adjust(top=0.70)
     save(fig, "cliff-saving")
+
+
+MECH_COLORS = {"fused": "#D55E00", "producer": "#0072B2", "consumer": "#009E73"}
+
+
+def parse_config(text):
+    return dict(part.split("=", 1) for part in text.split(";") if "=" in part)
+
+
+def mechanism():
+    rows = [
+        r for r in read_table("cliff-results")
+        if int(r["M"]) == 1024 and int(r["K"]) == 8192 and r["dtype"] == "float32"
+    ]
+    rows.sort(key=lambda r: int(r["B"]))
+    prof = {}
+    for row in rows:
+        b = int(row["B"])
+        path = (
+            PAPER.parent / "runs" / "cliff-20261128T090000Z" / "json"
+            / f"paired-M1024-K8192-float32-b{b}.json"
+        )
+        if not path.exists():
+            continue
+        data = json.loads(path.read_text())
+        if "profile_us_per_call" not in data:
+            continue
+        per = data["profile_us_per_call"]
+        prof[b] = (
+            sum(per["fused"].values()),
+            sum(v for k, v in per["split"].items() if "triton_red" in k),
+            sum(v for k, v in per["split"].items() if "triton_poi" in k),
+        )
+
+    xs = sorted(prof)
+    fig, axes = plt.subplots(
+        1, 2, figsize=(WIDTH, 1.90), gridspec_kw={"wspace": 0.36},
+    )
+    fig.subplots_adjust(left=0.12, right=0.95, top=0.82, bottom=0.22)
+
+    ax = axes[0]
+    for key, label, color in (
+        ("fused", "Fused", MECH_COLORS["fused"]),
+        ("producer", "Split producer", MECH_COLORS["producer"]),
+        ("consumer", "Split consumer", MECH_COLORS["consumer"]),
+    ):
+        index = {"fused": 0, "producer": 1, "consumer": 2}[key]
+        ax.plot(
+            xs, [prof[b][index] for b in xs],
+            color=color, linewidth=0.9, marker="o", markersize=3.2,
+            markeredgecolor="white", markeredgewidth=0.35, label=label,
+        )
+    ax.set(xlabel="Shifted reads $B$", ylabel="Kernel self time (µs/call)")
+    ax.yaxis.grid(True, color=GRID, linewidth=0.55)
+    ax.legend(frameon=False, fontsize=6.8, loc="upper left")
+    ax.set_title("(a) Profiled self time", loc="left", fontsize=8.8,
+                 fontweight="bold", pad=4)
+    if xs:
+        ax.text(xs[-1] - 0.2, prof[xs[-1]][0] + 3, "≈5 µs/read",
+                ha="right", va="bottom", fontsize=6.8,
+                color=MECH_COLORS["fused"])
+        ax.text(xs[-1] - 0.2, prof[xs[-1]][2] - 3, "≈1 µs/read",
+                ha="right", va="top", fontsize=6.8,
+                color=MECH_COLORS["consumer"])
+
+    ax = axes[1]
+    bx = [int(r["B"]) for r in rows]
+    fused_rb = [int(parse_config(r["fused_config"])["RBLOCK"]) for r in rows]
+    prod_rb = [int(parse_config(r["split_producer_config"])["RBLOCK"]) for r in rows]
+    fused_w = [int(r["fused_warps"]) for r in rows]
+    prod_w = [int(r["split_producer_warps"]) for r in rows]
+    ax.step(bx, fused_rb, where="post", color=MECH_COLORS["fused"],
+            linewidth=0.9, label="Fused RBLOCK")
+    ax.step(bx, prod_rb, where="post", color=MECH_COLORS["producer"],
+            linewidth=0.9, linestyle=(0, (3, 2)), label="Producer RBLOCK")
+    ax.set_yscale("log", base=2)
+    ax.set_yticks([512, 1024, 2048], ["512", "1024", "2048"])
+    ax.set_ylim(400, 2600)
+    ax.set_xlim(-0.5, 13.5)
+    ax.set(xlabel="Shifted reads $B$", ylabel="RBLOCK")
+    ax.yaxis.grid(True, color=GRID, linewidth=0.55)
+    ax.axvline(7, color=MUTED, linewidth=0.6, linestyle=(0, (3, 2)), zorder=0)
+    ax.text(7.15, 2350, "load cap", fontsize=6.6, color=MUTED, va="top")
+    ax2 = ax.twinx()
+    ax2.step(bx, fused_w, where="post", color=MECH_COLORS["fused"],
+             linewidth=0.9, linestyle=(0, (1, 1)))
+    ax2.step(bx, prod_w, where="post", color=MECH_COLORS["producer"],
+             linewidth=0.9, linestyle=(0, (1, 3)))
+    ax2.set_yticks([8, 16])
+    ax2.set_ylim(4, 18)
+    ax2.set_ylabel("Warps")
+    ax2.spines["top"].set_visible(False)
+    ax.set_title("(b) Launch configuration", loc="left", fontsize=8.8,
+                 fontweight="bold", pad=4)
+    ax.text(bx[-1] + 0.15, fused_rb[-1] * 1.08, "fused",
+            fontsize=6.6, color=MECH_COLORS["fused"], va="bottom", ha="left")
+    ax.text(bx[-1] + 0.15, prod_rb[-1] * 0.92, "producer",
+            fontsize=6.6, color=MECH_COLORS["producer"], va="top", ha="left")
+    save(fig, "cliff-mechanism")
+
+
+def decision_quality():
+    rows = read_table("decision-metrics")
+    methods = [
+        ("default_inductor", "Default"),
+        ("model_2term", "Two-term"),
+        ("model_3term", "Three-term"),
+        ("always_split", "Always split"),
+    ]
+    selected = {
+        key: next(
+            r for r in rows
+            if r["cohort"] == "4090" and r["scope"] == "all"
+            and r["mode"] == "replay" and r["method"] == key
+        )
+        for key, _ in methods
+    }
+    names = [label for _, label in methods]
+    accuracy = [
+        float(selected[key]["n_correct"]) / float(selected[key]["n_clear"])
+        for key, _ in methods
+    ]
+    regret = [max(float(selected[key]["mean_regret_us"]), 1e-4)
+              for key, _ in methods]
+
+    fig, axes = plt.subplots(
+        1, 2, figsize=(WIDTH, 1.95), gridspec_kw={"wspace": 0.55},
+    )
+    fig.subplots_adjust(left=0.20, right=0.97, top=0.80, bottom=0.24)
+
+    ax = axes[0]
+    colors = [MUTED, COLORS["direct"], "#D55E00", "#CC79A7"]
+    ax.barh(range(len(methods)), accuracy, color=colors, height=0.55)
+    ax.set_yticks(range(len(methods)), names, fontsize=7.2)
+    ax.invert_yaxis()
+    ax.set_xlim(0, 1.05)
+    ax.set_xlabel("Clear-case accuracy")
+    ax.xaxis.grid(True, color=GRID, linewidth=0.55)
+    for i, (key, _) in enumerate(methods):
+        ax.text(accuracy[i] + 0.02, i,
+                f"{selected[key]['n_correct']}/{selected[key]['n_clear']}",
+                va="center", fontsize=6.7, color=INK)
+    ax.set_title("(a) Accuracy", loc="left", fontsize=8.8,
+                 fontweight="bold", pad=4)
+
+    ax = axes[1]
+    ax.set_xscale("log")
+    ax.scatter(regret, range(len(methods)), s=18, color=colors, zorder=3,
+               edgecolor="white", linewidth=0.4)
+    ax.set_yticks(range(len(methods)), [""] * len(methods))
+    ax.invert_yaxis()
+    ax.set_ylim(len(methods) - 0.4, -0.6)
+    ax.set_xlim(0.004, 10)
+    ax.set_xlabel("Mean regret (µs, log scale)")
+    ax.xaxis.grid(True, color=GRID, linewidth=0.55)
+    for i, value in enumerate(regret):
+        ax.text(value * 1.12, i, f"{value:.3g}", va="top" if i == 0 else "center",
+                fontsize=6.7)
+    ax.set_title("(b) Regret", loc="left", fontsize=8.8,
+                 fontweight="bold", pad=4)
+    save(fig, "decision-quality")
+
+
+def latency_summary(rows):
+    cases = {
+        "P1  65K": "P1-n65536-f32-contig-t",
+        "P2  65K": "P2-n65536-f32-contig-t",
+        "R1  256×8K": "R1-m256-k8192-f32-contig-t",
+        "R2  256×8K": "R2-m256-k8192-f32-contig-t",
+    }
+    fig, axes = plt.subplots(
+        1, 2, figsize=(WIDTH, 1.55), sharex=True,
+        gridspec_kw={"wspace": 0.10},
+    )
+    fig.subplots_adjust(left=0.20, right=0.93, top=0.76, bottom=0.26)
+    for i, (ax, mode) in enumerate(zip(axes, MODES)):
+        for y, (label, case) in enumerate(cases.items()):
+            row = next(
+                r for r in rows
+                if r["cohort"] == "3090-base" and r["case_id"] == case
+                and r["mode"] == mode
+            )
+            split = float(row["T_split_us"])
+            fused = float(row["T_fused_us"])
+            ax.plot((split, fused), (y, y), color=CONNECTOR,
+                    linewidth=0.8, zorder=1)
+            ax.plot(split, y, marker="o", color=MUTED, markersize=3.8,
+                    markeredgecolor="white", markeredgewidth=0.4,
+                    linestyle="none", zorder=3)
+            ax.plot(fused, y, marker="s", color=COLORS["direct"],
+                    markersize=3.8, markeredgecolor="white",
+                    markeredgewidth=0.4, linestyle="none", zorder=3)
+            ax.text(max(split, fused) + 0.35, y,
+                    f"{split / fused:.2f}×", va="center", fontsize=6.7)
+        ax.set_yticks(range(len(cases)), list(cases) if i == 0 else [])
+        ax.invert_yaxis()
+        ax.set_xlim(0, 19.5)
+        ax.set_xlabel("Per-call latency (µs)")
+        ax.xaxis.grid(True, color=GRID, linewidth=0.55)
+        ax.set_title(
+            ("(a) Direct submission", "(b) CUDA Graph replay")[i],
+            loc="left", fontsize=8.8, fontweight="bold", pad=4,
+        )
+    handles = [
+        Line2D([], [], marker="o", color=MUTED, linestyle="none",
+               markersize=4, markeredgecolor="white", markeredgewidth=0.4,
+               label="Split"),
+        Line2D([], [], marker="s", color=COLORS["direct"], linestyle="none",
+               markersize=4, markeredgecolor="white", markeredgewidth=0.4,
+               label="Fused"),
+    ]
+    fig.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, 0.99),
+               ncol=2, frameon=False, fontsize=7.0, handletextpad=0.4,
+               columnspacing=1.2, borderaxespad=0)
+    save(fig, "split-fused-latency")
 
 
 def set_style():
@@ -768,6 +996,9 @@ def main():
     set_style()
     rows = read_table("case-results")
     followup_saving(rows)
+    latency_summary(rows)
+    decision_quality()
+    mechanism()
     layout_effects(read_table("layout-contrasts"))
     device_labels(rows)
     pointwise_scaling(rows)
@@ -782,5 +1013,14 @@ if __name__ == "__main__":
     if "--cliff-only" in sys.argv:
         set_style()
         cliff_saving(read_table("cliff-results"))
+    elif "--mechanism-only" in sys.argv:
+        set_style()
+        mechanism()
+    elif "--decision-only" in sys.argv:
+        set_style()
+        decision_quality()
+    elif "--latency-only" in sys.argv:
+        set_style()
+        latency_summary(read_table("case-results"))
     else:
         main()

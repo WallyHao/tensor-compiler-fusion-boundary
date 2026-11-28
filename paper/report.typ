@@ -80,7 +80,6 @@ logical bytes and occupancy cannot locate it: the occupancy difference does not 
 sign (Section 4.2), and its success on the original grid reflects the absence of such
 cases rather than the adequacy of the features.
 
-#pagebreak()
 = Conclusion
 
 For these single-consumer TorchInductor fragments, eliminating a verified intermediate generally helped under direct submission, and replay reduced which advantages were large enough to resolve. The decrease in absolute benefit occurred in all 20 RTX 3090 follow-up configurations. For a large FP32 pointwise vector on the same device, fusion retained about 160 µs of benefit in either mode, so per-call microseconds and relative savings must be reported together.
@@ -94,7 +93,6 @@ Three extensions would test the boundary further: a second family whose consumer
   #include "replication.typ"
 ]
 
-#pagebreak()
 #bibliography("references.bib", title: [References], style: "association-for-computing-machinery")
 
 #pagebreak()

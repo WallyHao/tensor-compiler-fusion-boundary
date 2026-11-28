@@ -22,7 +22,7 @@ PDF 本身不入库（见 `.gitignore`），本表是索引；按 DOI/arXiv 链�
 ## 对照分析
 
 - `style-structure-comparison.md`：手稿与 DNNFusion (PLDI'21)、AStitch (ASPLOS'22)、Korch (ASPLOS'24) 的章节结构、篇幅分配、行文风格与表格使用对照；含 P0–P2 修改清单。
-- `figure-comparison.md`：7 张图/2 张表与三篇论文的图法对照；记录已修的两处硬缺陷（device 对角线 71/72、inconclusive 术语），并给出机制图、决策图、绝对时延图的具体方案。
+- `figure-comparison.md`：10 张图/2 张表与三篇论文的图法对照；记录两处硬缺陷（device 对角线 71/72、inconclusive 术语）及机制图、决策图、绝对时延图的实现方案。
 
 ## 版式参照
 

@@ -2,6 +2,8 @@
 
 对照对象：`paper/report.pdf` 的 7 张图、2 张表；三篇 ACM 论文的 PDF 页面（逐页渲染后阅读其图）。选这三篇的理由：它们都以“融合/编排”为主线，且图的类型覆盖了我们论文需要的三种证据——基线比较（DNNFusion）、融合空间与时间分解（AStitch）、决策与 kernel 映射（Korch）。
 
+> 2026-11-28 更新：P1 已实现——新增 `cliff-mechanism`、`decision-quality`、`split-fused-latency`，重绘 `cliff-saving`、`pointwise-scaling`、`device-labels`，图题改为结论先行；正文现为 10 图、2 表。下文保留为修改前对照。
+
 ## 0. 结论
 
 1. **我们的图在统计表达上强于三篇**：每张估计图都有配对 95% 区间、零线、±2% 等价带，颜色与标记同时编码模式；三篇基本没有误差条（AStitch 10 次取平均，DNNFusion 明确只报平均，Korch 单次）。

@@ -16,7 +16,7 @@ RTX 3090 and 4090 each cover all 72 original configurations; H800 PCIe covers 12
 
 #figure(
   image("figures/workload-coverage.svg", width: 100%, alt: "The original RTX grids each contain 12 cases of each pointwise family and 24 of each reduction family. The H800 row covers a selected subset. Only the follow-up includes inverse RMS."),
-  caption: [Measured configurations by workload family and cohort. Each configuration contributes one count to its row across both submission modes. Four follow-up controls repeat original RTX 3090 configurations.],
+  caption: [The grid covers every family on both RTX devices; the H800 receives 12 preselected cases and the follow-up adds 20 reductions. Each configuration contributes one count across both modes; four follow-up controls repeat original RTX 3090 configurations.],
 ) <fig-workload-coverage>
 
 == Constructing and checking the candidates

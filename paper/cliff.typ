@@ -25,7 +25,7 @@ between $B = 2$ (+1.89 µs, +6.4%) and $B = 3$.
 #figure(
   placement: none,
   image("figures/cliff-saving.svg", width: 100%, alt: "Two panels plot the split-minus-fused time against the number of shifted reads B. For M=1024 the relative saving falls from +25% to -73% between B=2 and B=8; the absolute panel runs from +7 to -28 microseconds. M=512 stays near or below zero, while M=2048 and M=4096 remain between +18% and +29%."),
-  caption: [Fusion saving in the stress family on the RTX 4090. Markers show the split-minus-fused time and whiskers the paired 95% intervals; filled markers are split-favored labels, open markers fusion-favored or inconclusive ones. The left panel gives the fraction of split latency, the right panel microseconds per call. All series use FP32 and $K = 8192$; color identifies the row count $M$.],
+  caption: [Splitting wins for $M in {512,1024}$, FP32 and $B >= 3$; the deepest loss is 28.0 µs (72.9%) at $M=1024, B=8$. Markers show the split-minus-fused time and whiskers the paired 95% intervals; filled markers are split-favored labels. Color identifies $M$; all series use $K=8192$.],
 ) <fig-cliff>
 
 We find the region narrow and not monotone. At $M = 256, B = 5$ fusion won by 11.38 µs
@@ -49,7 +49,7 @@ were 37.15, 9.02 and 19.09 µs; at $B = 5$, 50.26, 8.76 and 20.55 µs; and at $B
 grows by about 1 µs per shifted read; the fused kernel grows by about 5 µs. Moving the
 epilogue into the reduction therefore multiplies the cost of each additional read by
 roughly five, and the crossover follows when the fusion saving on the handoff no longer
-covers that difference.
+covers that difference (@fig-mechanism).
 
 Two mechanisms produce the difference. First, the epilogue's parallelism is tied to the
 number of rows rather than to the number of elements: the fused grid has $M$ programs,
@@ -69,6 +69,11 @@ Neither path alone explains the sign. At $M = 4096, B = 8$ the fused kernel is c
 `RBLOCK = 1024` and 8 warps with occupancy 0.83, yet it is 97.0 µs faster than the split.
 With 4096 programs the fused epilogue's reuse of each row stays inside one kernel, and
 the split consumer re-reads the input after the producer has streamed it.
+
+#figure(
+  image("figures/cliff-mechanism.svg", width: 100%, alt: "Left: profiled self time against shifted reads for the fused kernel, the split producer and the split consumer at M=1024. The fused kernel grows about five microseconds per read, the consumer about one; the producer is flat. Right: the fused RBLOCK steps from 2048 to 1024 and 512 and its warps from 16 to 8; the split producer stays at 2048 and 16 warps."),
+  caption: [The fused epilogue inherits the reduction tile: its self time grows about 5 µs per shifted read, against about 1 µs for the split consumer; at $B=7$ the load counter reaches 10 and `RBLOCK`/warps are capped.],
+) <fig-mechanism>
 
 == Scope
 

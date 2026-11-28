@@ -23,7 +23,7 @@ This section answers four questions. (1) How much of the direct-submission savin
 #figure(
   placement: none,
   image("figures/followup-saving.svg", width: 100%, alt: "One row per RTX 3090 reduction configuration. Direct-submission circles lie to the right of graph-replay diamonds in every row. The controls, long reductions, transposed inputs and inverse-RMS fragments are grouped separately."),
-  caption: [Absolute fusion saving across the 20 RTX 3090 follow-up configurations. Markers show the split-minus-fused time and whiskers show per-configuration paired 95% intervals. Gray connectors join the two estimates for the same configuration. Each row gives the template and the shape $M times K$.],
+  caption: [Replay preserves the fusion-favored sign but roughly halves the absolute saving: the per-configuration median falls from 2.36 to 0.68 µs. Markers show the split-minus-fused time and whiskers the paired 95% intervals; gray connectors join the two modes for the same configuration.],
 ) <fig-followup>
 
 
@@ -40,7 +40,7 @@ The inverse-RMS fragment (N1) extends the comparison to a reduction with an inpu
 #figure(
   placement: none,
   image("figures/layout-effects.svg", width: 100%, alt: "Under direct submission, all four estimates lie left of zero in the relative panel and near or right of zero in the absolute panel. Under replay, the absolute change is positive for both 16-row reductions and negative for both 256-row reductions."),
-  caption: [Change in fusion saving when switching from contiguous to transposed FP32 input on the RTX 3090, with $K = 8192$. Each marker is the transposed estimate minus its matched contiguous estimate. Whiskers are 95% bootstrap intervals for the difference, resampling complete split–fused blocks separately within each layout.],
+  caption: [Transposition changes the percentage more than the microseconds: the relative saving falls in all four direct comparisons while the absolute point estimate rises. Each marker is the transposed estimate minus its matched contiguous estimate; whiskers are 95% bootstrap intervals.],
 ) <fig-layout>
 
 
@@ -57,7 +57,7 @@ Replay changed the relationship with row count. At 16 rows, transposition increa
 #figure(
   placement: none,
   image("figures/device-labels.svg", width: 100%, alt: "Two three-by-three matrices count paired RTX 3090 and RTX 4090 labels. Direct submission places 68 cases in the shared fusion cell and three in the shared equivalence cell. Replay places 13 in the shared fusion cell and distributes cases across all nine cells."),
-  caption: [Joint fusion labels for the same 72 configurations on the two RTX devices. Each matrix cell counts configurations at the intersection of the RTX 3090 row and RTX 4090 column. Neither device had a split-favored interval at the 2% practical margin.],
+  caption: [Direct submission agrees on 71 of 72 labels; replay leaves only 13 configurations in the shared fusion cell. Each cell counts configurations at the intersection of the RTX 3090 row and RTX 4090 column at the 2% margin.],
 ) <fig-devices>
 
 
@@ -67,7 +67,12 @@ We compare the H800 PCIe on a preselected subset of 12 cases. Restricting all th
 
 == Do the predictive models improve on the default?
 
-On target devices and in the RTX 3090 follow-up, the two-term model matched Inductor's default on clear-case accuracy and mean regret. On the RTX 4090 replay grid, the two-term rule, the default and always-fuse each selected all 27 clear winners, yet each incurred mean regret 0.00583 µs over all 72 configurations. Accuracy counts resolved labels; regret compares the selected time with the faster measured time, so unresolved cases can add regret even when every clear case is correct.
+On target devices and in the RTX 3090 follow-up, the two-term model matched Inductor's default on clear-case accuracy and mean regret. On the RTX 4090 replay grid, the two-term rule, the default and always-fuse each selected all 27 clear winners, yet each incurred mean regret 0.00583 µs over all 72 configurations. Accuracy counts resolved labels; regret compares the selected time with the faster measured time, so unresolved cases can add regret even when every clear case is correct (@fig-decision).
+
+#figure(
+  image("figures/decision-quality.svg", width: 100%, alt: "Two panels compare four policies on the RTX 4090 replay grid. Accuracy is 27 of 27 for the default and two-term model, 25 of 27 for the three-term model, and 0 for always-split. Mean regret is about 0.006 microseconds for the first two, 0.019 for the three-term model, and 4.57 for always-split."),
+  caption: [The three-term model adds two FP16 errors without gaining coverage; always splitting costs 4.57 µs per call. Left: clear-case accuracy; right: mean regret over all 72 configurations (log scale).],
+) <fig-decision>
 
 Adding the resource term reduced RTX 4090 replay accuracy to 25 of 27: both errors were FP16 contiguous R2 with 16 rows, where selecting split cost 0.622 µs at length 512 and 0.324 µs at 2,048; mean regret rose to 0.01861 µs. In the RTX 3090 follow-up, the two-term rule predicted all 20 cases per mode, while the three-term rule could be scored on only 12; all eight omissions were cases where fusion reduced kernel count from three to two (the four transposed inputs and four 16-row long reductions). Its eight correct replay decisions therefore say nothing about those inputs.
 
@@ -84,10 +89,15 @@ A second acquisition revisited four cases selected for replay estimates close to
 #figure(
   image("figures/pointwise-scaling.svg", width: 100%, alt: "Two panels show the six FP32 vector lengths for the affine–ReLU and tanh–affine chains. At small lengths the replay markers are near zero. Both modes approach a 50% saving at the largest length for both chains."),
   placement: none,
-  caption: [Relative fusion saving for contiguous FP32 pointwise chains on the RTX 3090. Markers show estimates and whiskers show per-configuration paired 95% intervals; solid and dashed segments follow direct submission and CUDA Graph replay. The shaded band marks the ±2% practical margin. The length axis is logarithmic (base 2).],
+  caption: [Fusion retains about 160 µs at 16M elements in both modes, while replay erases the advantage at 1,024. Markers show per-configuration estimates and whiskers the paired 95% intervals; the shaded band is the ±2% margin.],
 ) <fig-pointwise>
 
-The reduction follow-up eliminates an intermediate with one scalar per row. In the pointwise grid the intermediate grows with the full input. @fig-pointwise shows how the benefit varies across the sampled lengths. On the RTX 3090, consider P1 with a contiguous FP32 vector of length 1,024. The split and fused paths took 8.146 and 5.096 µs per call under direct submission. Under replay they took 7.958 and 7.880 µs. The replay estimate saved 0.98%, but its interval extended slightly beyond 2%. A decision rule based on the point estimate alone would call the variants equivalent. The interval rule leaves that decision open.
+The reduction follow-up eliminates an intermediate with one scalar per row. In the pointwise grid the intermediate grows with the full input. @fig-pointwise shows how the benefit varies across the sampled lengths. On the RTX 3090, consider P1 with a contiguous FP32 vector of length 1,024. The split and fused paths took 8.146 and 5.096 µs per call under direct submission. Under replay they took 7.958 and 7.880 µs. The replay estimate saved 0.98%, but its interval extended slightly beyond 2%. A decision rule based on the point estimate alone would call the variants equivalent. The interval rule leaves that decision open. @fig-latency sets the absolute times next to the two reduction templates.
+
+#figure(
+  image("figures/split-fused-latency.svg", width: 100%, alt: "Two panels plot split and fused per-call latency for four templates. Direct submission separates the pair for P1 and P2; replay brings them together. R1 and R2 remain separated in both modes. Speedups are printed at each row."),
+  caption: [Replay removes the pointwise advantage: P1 and P2 fall from about 1.6× to 1.01×, while R1 and R2 retain 1.09×. Each row is one representative configuration on the RTX 3090; the speedup is split time divided by fused time.],
+) <fig-latency>
 
 Now keep the expression, type, layout and device fixed, and increase the vector length to 16,777,216. Under direct submission the split time was 321.424 µs and the fused time was 160.886 µs. Under replay the times were 324.411 and 164.274 µs. In absolute terms the saving was about 160 µs in either mode. The logical intermediate at this size occupies 64 MiB. Writing and reading it accounts for 128 MiB of logical accesses across the cut. Eliminating a kernel that moves an entire vector can therefore retain a substantial advantage even when replay makes submission cheaper. The timing and the generated access pattern support this explanation. Establishing how many bytes reached DRAM would require additional evidence.
 
