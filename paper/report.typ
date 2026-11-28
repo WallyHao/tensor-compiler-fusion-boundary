@@ -5,7 +5,11 @@
   format: "acmsmall", nonacm: true, publication: (:),
   title: "When Does Local Kernel Fusion Save Time? Paired Measurements of TorchInductor on Three GPUs",
   shorttitle: "Local Kernel Fusion in TorchInductor",
-  authors: ((name: "Junhao Liu", affiliation: none, email: none, orcid: none),),
+  authors: (
+    (name: "Junhao Liu", affiliation: none, email: none, orcid: none),
+    (name: "Jianye Chen", affiliation: none, email: none, orcid: none),
+  ),
+  shortauthors: "Junhao Liu and Jianye Chen",
   abstract: [
     Fusing a producer with its consumer can eliminate a kernel launch and the write and read of an intermediate tensor. Fusion decisions are often justified by launch counts and logical bytes, leaving untested whether the fused kernel preserves the producer's schedule. We measure the combined saving in TorchInductor by compiling both partitions of a single edge, verifying their generated kernels, and timing the two executions in paired blocks. Under direct CUDA submission, the lower bound of the 95% interval for relative savings exceeded 2% in the same 68 of 72 configurations on both the RTX 3090 and RTX 4090. Under CUDA Graph replay, 25 cases favored fusion on the RTX 3090 and 27 on the RTX 4090, with 13 in common. In a 20-case RTX 3090 reduction follow-up, the median saving fell from 2.36 µs per call under direct submission to 0.68 µs under replay. At fixed shape, transposing the input reduced the percentage saved in all four direct-submission contrasts even as the point estimates of the time saved rose. A model of launch and intermediate-transfer costs matched the compiler default on clear-case accuracy and mean regret in validation, including a 12-case H800 PCIe subset. The default fused every measured edge, and no case in the grid established a practical advantage for splitting. A reduction stress family whose epilogue performs $B$ shifted reads produced one: splitting was faster by up to 28.0 µs (72.9%) for 512 and 1024 rows at $K = 8192$, while fusion still won outside that narrow region.
   ],
