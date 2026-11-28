@@ -23,7 +23,6 @@ were −8.70 µs (−8.78 to −8.62) and −20.42 µs (−20.52 to −20.31). T
 between $B = 2$ (+1.89 µs, +6.4%) and $B = 3$.
 
 #figure(
-  placement: none,
   image("figures/cliff-saving.svg", width: 100%, alt: "Two panels plot the split-minus-fused time against the number of shifted reads B. For M=1024 the relative saving falls from +25% to -73% between B=2 and B=8; the absolute panel runs from +7 to -28 microseconds. M=512 stays near or below zero, while M=2048 and M=4096 remain between +18% and +29%."),
   caption: [Splitting wins for $M in {512,1024}$, FP32 and $B >= 3$; the deepest loss is 28.0 µs (72.9%) at $M=1024, B=8$. Markers show the split-minus-fused time and whiskers the paired 95% intervals; filled markers are split-favored labels. Color identifies $M$; all series use $K=8192$.],
 ) <fig-cliff>
