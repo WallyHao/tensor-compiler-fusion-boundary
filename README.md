@@ -117,12 +117,35 @@ RTX 4060 Laptop 上的冒烟仅用于验证流程。正式 run 的 GPU 型号、
 
 其中 expand 指 `t = x.sum(dim=1); y = t[:, None] * x`，即“消费者并行度高于生产者”的候选；四组形状全部是融合更快。R1 4096×8192 的 +1.3 µs 与 3090/4090 的 ~1.3–1.4 µs 一致。
 
-作为对照：把 producer/consumer **分开编译**（各自选 schedule）时，R1 4096×8192 在 4060 上是 split 540.6 µs、fused 616.9 µs，split 反而快 12%。但这不是当前 `split` 的定义，不能直接记为 split 标签；它说明真正值得测的替代是“独立调度”，并且必须在 3090 上复测。
+作为对照：把 producer/consumer **分开编译**（各自选 schedule）时，R1 4096×8192 在 4060 上是 split 540.6 µs、fused 616.9 µs，split 反而快 12%。但这不是当前 `split` 的定义，不能直接记为 split 标签；它说明真正值得测的替代是“独立调度”，并且必须在 3090 上复测。2026-11-28 在 4090 上用 pinned config 复测：单独编译 producer 的调度与 fused producer 逐 case 相同（见下节），该 12% 不能复现。
 
-### 待办（二选一，先预筛再计时）
+### 复核（2026-11-28，RTX 4090）：第 1 条候选不成立
 
-1. **新增 `split_independent` 候选**：producer/consumer 各自编译、各自选 tile/autotune，保持同一 Inductor config；现有同图 veto 保留为 `split_inplace` 诊断。负对照必须在 3090 上 `B < 0`、95% CI 排除 0、两次独立复跑同号。
-2. **保留同图 split，构造 register/occupancy cliff**：让 fused kernel 出现 `n_spills > 0` 或 occupancy 低于 split 的 producer。例如 16–32 个串联 elementwise / 多临时量的 epilogue。资源没有差异就不进入 label 表。
+在租用 RTX 4090（`torch 2.6.0+cu124`、`triton 3.2.0`、GPU UUID
+`417fcd0a-3ce5-cc0a-72c6-8820aa90f5cd`）上，用与归档相同的 pinned Inductor config
+复核了 `split_independent`：
+
+- **调度完全相同（72/72）**：单独编译 `t = producer(x)` 得到的
+  `block/num_warps/num_stages` 与归档 fused producer 逐 case 相同；仅 `n_regs` 差
+  −4…+2，occupancy 全同。3090 归档的 split/fused producer 同样 72/72 相同。
+- **两图组合严格更慢**：`independent`（producer/consumer 各自编译、两次 Python 调用）
+  相对 fused 的 $B$ 为 +1.55 µs（`R1-m4096-k8192-f16`，95% CI [1.47, 1.64]）、
+  +3.59 µs（f32，[1.10, 8.03]）、+34.08 µs（`R1-m256-k8192-f32`；fused 只有 34.8 µs，
+  第二个 Python 入口主导）。
+- 结论：同图 split 已经是 Inductor 对这条边能给出的独立调度；`split_independent` 与它
+  逐 kernel 相同，只多一次 Python 入口。4060 上的 12% 在 pinned config 下不能复现。
+- 产物：`runs/probe-standalone-producer-72-20261128T074500Z/`（72 case 审计与
+  `summary.json`）、`runs/probe-independent-20261128T073500Z/`（3 case × 5 role、
+  30 block 配对与 `summary.json`）；复现脚本 `scripts/run_probe_all.sh`、
+  `scripts/run_probe.sh`、`scripts/probe_independent.py`。
+
+### 待办：只剩第 2 条
+
+1. ~~新增 `split_independent` 候选~~：已否定，见上。
+2. **保留同图 split，构造 register/occupancy cliff**：让 fused kernel 出现
+   `n_spills > 0` 或 occupancy 低于 split 的 producer。例如 16–32 个串联 elementwise /
+   多临时量的 epilogue。现有 72 case 与 20 个补采用例的 0 spill、fused producer
+   occupancy 从不低于 split，加形状无法制造该悬崖；这需要新模板与新语料。
 
 若两条都试过仍无 split，论文应改为“融合占优区 + 负结果”，并删除边界、模型排名与跨卡迁移的主张（此时迁移预测的是常数）。继续增加 N/M/K/dtype/transpose 不会改变结论：3090 补采已是 20/20 fuse。
 
