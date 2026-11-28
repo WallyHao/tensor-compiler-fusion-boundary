@@ -119,3 +119,48 @@ python scripts/validate_transfer.py compare \
 ```
 
 两次比较分别包含 144 和 24 个共同 case/mode。H800 输出的 `source_only` 列出其余 120 个仅在源设备覆盖的 case/mode。两个目标设备的预测冻结 UTC 均早于对应的正式配对起始 UTC。预期 direct 明确标签数分别为 68 和 12，两项、三项与默认策略均全部选对。replay 中，RTX 4090 的三项模型选对 25/27，两项与默认策略各选对 27/27。H800 子集上三种方法均选对 7/7。
+
+## RTX 4090 独立调度复核（2026-11-28）
+
+```
+fb-probe-4090-20261128.tar.zst              42 KiB（1087 个条目）
+fb-probe-4090-20261128.tar.zst.sha256
+```
+
+含 `runs/probe-independent-20261128T073500Z`（3 个 case × `producer`/`consumer`/`fused`/
+`independent`/`paired` 五个 role，paired 为 30 block、正反顺序交替的配对）与
+`runs/probe-standalone-producer-72-20261128T074500Z`（72 个 case 的 standalone producer
+编译证据、逐 case 对照与 `summary.json`）。排除 `*/cache/`。
+
+设备：`NVIDIA GeForce RTX 4090`，`torch 2.6.0+cu124`、`triton 3.2.0`、Python 3.12.3，
+GPU UUID `417fcd0a-3ce5-cc0a-72c6-8820aa90f5cd`。
+
+结论：单独编译的 producer 与归档 fused producer 在 `block/num_warps/num_stages` 上
+**72/72 相同**（`n_regs` 差 −4…+2，occupancy 全同）；两图组合比 fused 慢
++1.55 µs（`R1-m4096-k8192-f16`，95% CI [1.47, 1.64]）、+3.59 µs（f32，[1.10, 8.03]）、
++34.08 µs（`R1-m256-k8192-f32`）。`split_independent` 与现有同图 split 逐 kernel 相同，
+只多一次 Python 入口；4060 上的 −12% 在 pinned config 下不能复现。详见仓库根 README 的
+「复核」小节。脚本：`scripts/probe_independent.py`、`scripts/run_probe.sh`、
+`scripts/run_probe_all.sh`。
+
+复核：
+
+```bash
+sha256sum -c data/fb-probe-4090-20261128.tar.zst.sha256
+mkdir -p /tmp/fb-probe && zstd -dc data/fb-probe-4090-20261128.tar.zst | tar -xf - -C /tmp/fb-probe
+python3 -m json.tool \
+  /tmp/fb-probe/runs/probe-standalone-producer-72-20261128T074500Z/summary.json | head -20
+```
+
+## 本机 RTX 4060 冒烟、适配器与审阅运行
+
+```
+fb-local-4060-20261128.tar.zst              602 KiB（7512 个条目）
+fb-local-4060-20261128.tar.zst.sha256
+```
+
+含 27 个此前未入库的本机 run：`env-local-*`、`pilot-4060-local`、`corpus-4060-local`
+（72 case 冒烟）、`diag-4060-local`、`dryrun-local-*`、`review-*`（审阅期间的 4060 测量）、
+`cand-pilot-*`、`pilot-adapter-*`、`ext-gpu-test*`、`kernel-guard-test`、`manifest-20261125`、
+`synthetic-c-sample`，以及 `analysis/out/synthetic-fixture-20261125`。排除 `*/cache/` 与
+`*.log`。这些 run 只用于流程验证与审阅对照，不进入正式统计。
