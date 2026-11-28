@@ -69,11 +69,12 @@
     <text x="279.0" y="156" text-anchor="middle">CUDA Graph replay</text>
   </g>
   <g id="n:score" data-kind="node">
-    <rect x="361" y="50" width="75" height="90" rx="2" fill="#F6F8FA" stroke="#65727C" stroke-width="0.65"/>
-    <text x="398.5" y="76" font-size="9" font-weight="bold" text-anchor="middle">Score decisions</text>
-    <text x="398.5" y="87" text-anchor="middle">Fusion savings</text>
-    <text x="398.5" y="98" text-anchor="middle">Paired intervals</text>
-    <text x="398.5" y="109" text-anchor="middle">Decision labels</text>
-    <text x="398.5" y="120" text-anchor="middle">Regret</text>
+    <rect x="361" y="26" width="75" height="142" rx="2" fill="#F6F8FA" stroke="#65727C" stroke-width="0.65"/>
+    <text x="398.5" y="47" font-size="9" font-weight="bold" text-anchor="middle">Score decisions</text>
+    <text x="398.5" y="67" text-anchor="middle">Fusion savings</text>
+    <text x="398.5" y="87" text-anchor="middle">Paired intervals</text>
+    <text x="398.5" y="107" text-anchor="middle">Decision labels</text>
+    <text x="398.5" y="127" text-anchor="middle">Regret</text>
+    <text x="398.5" y="147" text-anchor="middle">Coverage</text>
   </g>
 </svg>
