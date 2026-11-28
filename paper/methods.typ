@@ -10,13 +10,13 @@ Two pointwise templates vary the intermediate size directly. P1 applies a rectif
 
 The other two original templates reduce an $M times K$ array along its second dimension. R1 sums each row in FP32 and applies a rectified linear unit. R2 takes the row maximum and applies the affine function used in P2. The maximum retains the input type. For these reductions, increasing $K$ increases the number of inputs contributing to each output while leaving the intermediate length at $M$. Changing $M$ alters both the number of independent rows and the intermediate length. The original grid crosses three row counts (16, 256, and 4,096), four reduction lengths (128, 512, 2,048, and 8,192), and the same two input types, giving 48 contiguous reduction configurations.
 
-RTX 3090 and 4090 each cover all 72 original configurations; H800 PCIe covers 12 preselected before collection. A second RTX 3090 experiment adds eight long reductions, four transposed inputs and four inverse-root-mean-square fragments (N1). N1 computes each row's mean squared entry and returns the reciprocal square root after adding $10^(-5)$, an intermediate in RMS normalization @rmsnorm; timing ends before multiplying the input by that factor. Four original configurations were re-measured as contiguous controls. In each layout comparison the transposed view has shape $(M,K)$ and stride $(1,M)$, its control stride $(K,1)$, with identical logical values at different physical addresses.
+RTX 3090 and 4090 each cover all 72 original configurations. The H800 PCIe covers 12 configurations fixed before H800 collection but after the RTX 4090 analysis; the subset deliberately includes the two cases where the three-term model errs under RTX 4090 replay (R2, 16 rows, FP16, $K in {512, 2048}$) and ten cases spanning all four templates. It is a targeted hard-case sample, not a random or stratified sample of the H800 grid. A second RTX 3090 experiment adds eight long reductions, four transposed inputs and four inverse-root-mean-square fragments (N1). N1 computes each row's mean squared entry and returns the reciprocal square root after adding $10^(-5)$, an intermediate in RMS normalization @rmsnorm; timing ends before multiplying the input by that factor. Four original configurations were re-measured as contiguous controls. In each layout comparison the transposed view has shape $(M,K)$ and stride $(1,M)$, its control stride $(K,1)$, with identical logical values at different physical addresses.
 
 @fig-workload-coverage summarizes which comparisons each device supports.
 
 #figure(
   image("figures/workload-coverage.svg", width: 100%, alt: "The original RTX grids each contain 12 cases of each pointwise family and 24 of each reduction family. The H800 row covers a selected subset. Only the follow-up includes inverse RMS."),
-  caption: [The grid covers every family on both RTX devices; the H800 receives 12 preselected cases and the follow-up adds 20 reductions. Each configuration contributes one count across both modes; four follow-up controls repeat original RTX 3090 configurations.],
+  caption: [The grid covers every family on both RTX devices; the H800 receives a targeted 12-case subset and the follow-up adds 20 reductions. Each configuration contributes one count across both modes; four follow-up controls repeat original RTX 3090 configurations.],
 ) <fig-workload-coverage>
 
 == Constructing and checking the candidates
@@ -37,9 +37,9 @@ The harness records configuration, mode, block, strategy and attempt; the audit 
 
 == Estimating the benefit
 
-Let $s_i$ and $f_i$ be per-call times in block $i$. Fusion's absolute benefit is the mean $s_i - f_i$; the relative reduction divides it by the mean $s_i$. The same microsecond saving can therefore give different relative reductions when layout changes split latency, so we report both.
+Let $s_i$ and $f_i$ be per-call times in block $i$. We report the split-minus-fused difference $Delta = T_s - T_f$ on per-call means; a negative $Delta$ means splitting is faster, and a positive $Delta$ means fusion is faster. Fusion's saving is $-Delta$; the relative reduction divides $-Delta$ by the mean split time. The same microsecond difference can therefore give different relative reductions when layout changes split latency, so we report both.
 
-Confidence intervals resample complete blocks with replacement 10,000 times @bootstrap, retaining both candidate times and recomputing the mean difference and split-time denominator; the 2.5th and 97.5th percentiles give 95% intervals. A relative interval above 2% favors fusion, below −2% favors splitting, and within $[-2%, 2%]$ supports practical equivalence; all others are indeterminate. We also evaluate labels at 1% and 5%.
+Confidence intervals resample complete blocks with replacement 10,000 times @bootstrap, retaining both candidate times and recomputing the mean difference and split-time denominator; the 2.5th and 97.5th percentiles give 95% intervals. A relative interval above 2% favors fusion, below −2% favors splitting, and within $[-2%, 2%]$ supports practical equivalence; all others are indeterminate. We adopt 2% as a working margin because smaller per-call differences are not actionable for the repeated-call fragments studied here; Section 5.5 reports 1% and 5%. Labels are treated as resolved at the 2% margin; with 144 intervals per device we do not control family-wise error, so label counts and accuracies are descriptive.
 
 For layout contrasts, blocks are paired within each layout; the analysis resamples transposed and contiguous sets independently, estimates the benefit within each, and subtracts contiguous from transposed. Differences in relative reduction are in percentage points. These intervals assume independent blocks and carry no simultaneous-coverage adjustment; counts summarize measured cases and imply no sampling distribution over applications.
 
@@ -53,10 +53,7 @@ $ t_m = sum_k x_(m,k), quad y_(m,k) = t_m ( x_(m,k) + sum_(s=1)^B x_(m,k+s) ) $
 with row indices taken modulo $K$. Each of the $B$ shifted reads is a distinct load in
 the generated kernel, and $B = 0$ reduces to multiplying every column of a row by that row's sum. The split candidate
 is the same entry with $t$ materialized during lowering and the merge vetoed, as in the
-main grid. We vary $M in {256, 512, 1024, 2048, 4096}$, $K in {2048, 4096, 8192,
-32768}$, FP16 and FP32, and $B$ from 0 to 12, and time 30 paired blocks per
-configuration (60 at $B = 3$) with the protocol of @sec-methods-pair; the label rule is
-unchanged. The family was compiled and timed on one RTX 4090. Compilation evidence
+main grid. The measured subset contains 24 configurations: $M in {256, 512, 1024, 2048, 4096}$ at $K = 8192$, with $B in {0,1,2,3,4,5,6,7,8,10,12}$ at $M = 1024$; selected points at $K in {2048, 4096, 32768}$ and FP16; and $M = 512$ at $B = 5, 8$. The appendix lists every measured point. We time 30 paired blocks per configuration (60 at $B = 3$) with the protocol of @sec-methods-pair; the label rule is unchanged. The family was compiled and timed on one RTX 4090. Compilation evidence
 records each kernel's block shape, warps, registers, spills, occupancy and the
 `num_load`/`num_reduction` counters embedded in the generated code, and per-kernel self
 times come from the CUDA activity profiler.

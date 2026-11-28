@@ -2,7 +2,7 @@
 
 This section measures the family, explains why the fused kernel loses and bounds the claim.
 
-The 72-case grid cannot produce a split-favored interval by construction. In the archived
+The 72-case grid was not expected to produce a split-favored interval. In the archived
 configurations of both RTX devices, the split and fused candidates share the producer
 kernel's block shape, warp count and stage count; they differ by at most four registers.
 Splitting therefore removes a launch, adds the write and read of $t$, and leaves the
@@ -15,16 +15,20 @@ remains a single intermediate.
 == The measured region
 
 The family and its protocol are described in @sec-methods-stress. Of 24 configurations,
-10 favored splitting, 13 favored fusion and one was inconclusive (@fig-cliff). Splitting
-won for $M in {512, 1024}$, $K = 8192$, FP32 and $B >= 3$. The largest fusion loss was at
-$M = 1024, B = 8$: 66.42 µs fused against 38.42 µs split, a saving of 28.00 µs (95%
-interval 27.86–28.14 µs), or 72.9% of split latency. At $B = 3$ and $B = 5$ the intervals
-were −8.70 µs (−8.78 to −8.62) and −20.42 µs (−20.52 to −20.31). The crossover lies
-between $B = 2$ (+1.89 µs, +6.4%) and $B = 3$.
+10 favored splitting, 13 favored fusion and one was inconclusive (@fig-cliff). In the 24
+measured points, every sampled configuration with $M in {512, 1024}$, $K = 8192$, FP32
+and $B >= 3$ favored splitting (10 of 24); the design does not cover $B = 9$ and $B = 11$
+at $M = 1024$, nor $M = 512$ at $B in {3,4,6,7}$, so the region boundary is unmeasured.
+The largest relative difference was at $M = 1024, B = 8$: 38.42 µs split against 66.42 µs
+fused, a split-minus-fused difference of −28.00 µs (95% interval −28.14 to −27.86 µs), or
+72.9% of split latency. The largest absolute difference in the split-favored direction
+was at $B = 12$: −28.32 µs (95% interval −28.45 to −28.17 µs), or 56.4%. At $B = 3$ and
+$B = 5$ the differences were −8.70 µs (−8.78 to −8.62) and −20.42 µs (−20.52 to −20.31).
+The crossover lies between $B = 2$ (+1.89 µs, +6.4%) and $B = 3$.
 
 #figure(
-  image("figures/cliff-saving.svg", width: 100%, alt: "Two panels plot the split-minus-fused time against the number of shifted reads B. For M=1024 the relative saving falls from +25% to -73% between B=2 and B=8; the absolute panel runs from +7 to -28 microseconds. M=512 stays near or below zero, while M=2048 and M=4096 remain between +18% and +29%."),
-  caption: [Splitting wins for $M in {512,1024}$, FP32 and $B >= 3$; the deepest loss is 28.0 µs (72.9%) at $M=1024, B=8$. Markers show the split-minus-fused time and whiskers the paired 95% intervals; filled markers are split-favored labels. Color identifies $M$; all series use $K=8192$.],
+  image("figures/cliff-saving.svg", width: 100%, alt: "Two panels plot the split-minus-fused time against the number of shifted reads B. For M=1024 the relative saving falls from +25% to -73% between B=2 and B=8; the absolute panel runs from +7 to -28.3 microseconds. M=512 stays near or below zero, while M=2048 and M=4096 remain between +18% and +29%."),
+  caption: [In the measured points, splitting wins for $M in {512,1024}$, FP32 and $B >= 3$; the largest relative difference is 72.9% at $M=1024, B=8$ (−28.00 µs), while the largest absolute difference in the split-favored direction is −28.32 µs at $B=12$. Markers show the split-minus-fused time and whiskers the paired 95% intervals; filled markers are split-favored labels. Color identifies $M$; all series use $K=8192$.],
 ) <fig-cliff>
 
 We find the region narrow and not monotone. At $M = 256, B = 5$ fusion won by 11.38 µs
@@ -40,12 +44,14 @@ than a threshold in one variable.
 
 The fused kernel runs the epilogue in the reduction's launch configuration: one program
 per row, `XBLOCK = 1`, 16 warps. The split consumer is a separate pointwise kernel with
-`XBLOCK = 1024`, four warps, and a grid that grows with $M K$. At $M = 1024, K = 8192$
+`XBLOCK = 1024`, four warps, and a grid that grows with $M K$. Self times exclude launch
+and stream gaps; summed self times are up to 2.6 µs below the paired-block wall times, so
+the comparison below is a decomposition, not a time budget. At $M = 1024, K = 8192$
 the profiled self times per call were 20.96 µs for the fused kernel at $B = 0$, against
 8.77 µs for the split producer and 18.37 µs for its consumer. At $B = 3$ the three values
 were 37.15, 9.02 and 19.09 µs; at $B = 5$, 50.26, 8.76 and 20.55 µs; and at $B = 8$,
 65.18, 8.88 and 26.97 µs. The producer time is flat at about 9 µs. The split consumer
-grows by about 1 µs per shifted read; the fused kernel grows by about 5 µs. Moving the
+grows by roughly 1 µs per shifted read on average; the fused kernel grows by about 5 µs. Moving the
 epilogue into the reduction therefore multiplies the cost of each additional read by
 roughly five, and the crossover follows when the fusion saving on the handoff no longer
 covers that difference (@fig-mechanism).
@@ -78,7 +84,7 @@ the split consumer re-reads the input after the producer has streamed it.
 
 The region was measured on one device and one family; Section 7.1 states what the
 comparison does not establish. The main grid's templates never reach the load threshold,
-with at most three loads per fused kernel, so its 72 fusion-favored labels are consistent
+with at most three loads per fused kernel, so its 68 fusion-favored labels per device are consistent
 with the mechanism rather than contradicted by it. We do not claim that fusion generally
 loses, nor that the four axes we varied are exhaustive. The claim is narrower and
 measured: a legal local edge can lose by a practical margin when the consumer's load

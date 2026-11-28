@@ -11,7 +11,7 @@
 | 转置输入的相对降幅下降，绝对节省的变化随模式与行数而异 | [布局对照表](tables/layout-contrasts.csv)按目标和 `control_case_id` 配对。每个布局内部重采样完整计时对，同形配置之间独立抽样 10,000 次计算差值区间 | 4 组 FP32 形状对照，固定 $K=8192$。区间按对照单独计算 |
 | R1/R2 长轴降幅减小，N1 边有明确降幅 | [逐配置结果](tables/case-results.csv)选 `long` 与 `rmsnorm`，并用同期 `anchor` 的对应 ID 复核长轴端点 | N1 输出为逆 RMS 因子。论文结论覆盖该切边及片段延迟 |
 | 独立复跑仅有一个标签变化 | [逐配置结果](tables/case-results.csv)以 `case_id,mode` 连接 `3090-rerun` 与 `3090-followup`，确认 8/8 点估计同号、7/8 标签一致。复跑 `run.json` 中顺序种子为 2029，240 对均有效 | 4 个诊断配置在原采集后按 replay 点估计接近零选出 |
-| 两项模型在测得的验证集上与默认策略打平，三项模型在 4090 replay 上两次明确错选 | [决策指标](tables/decision-metrics.csv)中的 `scope=all`。4090 的两例为 `R2-m16-k512-f16-contig-t` 和 `R2-m16-k2048-f16-contig-t`，regret 分别为 0.622 和 0.324 µs | 明确标签准确率的分母仅含融合或拆分占优样本。平均 regret 使用该方法有预测的全部实测配置 |
+| 两项模型在测得的验证集上与默认策略打平；但所有 clear label 均为融合且默认始终融合，该比较不能区分策略在拆分占优边上的能力 | [决策指标](tables/decision-metrics.csv)中的 `scope=all`。4090 的两例为 `R2-m16-k512-f16-contig-t` 和 `R2-m16-k2048-f16-contig-t`，regret 分别为 0.622 和 0.324 µs | 明确标签准确率的分母仅含融合或拆分占优样本。平均 regret 使用该方法有预测的全部实测配置 |
 | 原网格普通提交高度一致，replay 的标签在不同设备间更易变化 | [逐配置结果](tables/case-results.csv)按 `case_id,mode` 连接原网格。[标签计数](tables/label-counts.csv)中的 `three-GPU subset` 是三卡确切交集 | H800 的 12 个配置在其采集前选定，其中包括 RTX 4090 已知的两个模型错选点 |
 
 在 `followup-full-meas-3090-20261126T082429Z` 正式 run 中，`N1-m256-k8192-f32-contig-t` 的普通提交第 0 个区块对应 `timings.jsonl` 第 662 行 split、第 661 行 fused，均为 `n=472`。拆分代码中的 `triton_red_fused_mean_pow_0` 写出行均方，`triton_poi_fused_add_rsqrt_1` 读回。融合代码中的 `triton_red_fused_add_mean_pow_rsqrt_0` 完成两侧运算。复核入口为 `artifacts/candidates/artifacts/N1-m256-k8192-f32-contig-t/{split,fused}/edge_evidence.json`、对应的 `output_code.py` 和重审后的 `block_audit.csv`。
