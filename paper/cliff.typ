@@ -72,13 +72,10 @@ the split consumer re-reads the input after the producer has streamed it.
 
 == Scope
 
-The region was measured on one device, with one family, and without hardware counters;
-occupancy is launch-configuration capacity rather than observed active warps, and kernel
-times come from the profiler. The main grid's templates never reach the load threshold,
+The region was measured on one device and one family; Section 7.1 states what the
+comparison does not establish. The main grid's templates never reach the load threshold,
 with at most three loads per fused kernel, so its 72 fusion-favored labels are consistent
 with the mechanism rather than contradicted by it. We do not claim that fusion generally
 loses, nor that the four axes we varied are exhaustive. The claim is narrower and
 measured: a legal local edge can lose by a practical margin when the consumer's load
-count ties the epilogue to the reduction's tile, and that sign is not predicted by the
-logical intermediate bytes or by the static occupancy difference alone
-(@sec-prediction-x3).
+count ties the epilogue to the reduction's tile.

@@ -65,34 +65,27 @@ The practical margin and the timing interval answer different questions. Moving 
 
 Six replay point estimates on the original grids favored splitting (two on the RTX 3090, four on the RTX 4090), but every interval included zero; for example, the RTX 3090 FP32 P2 chain at length 8,192 saved −0.73% (95% interval −2.25% to 0.42%). These estimates do not establish a practically significant loss from fusion.
 
-The intervals describe variation among paired blocks within one acquisition and cannot estimate variability across days or hosts; the four-case repeat only tests stability near the observed margin. Registers and shared memory describe assigned resources, and management telemetry places a run in device context @smi, but neither shows active warps or cache-level traffic. Those claims need performance counters @nsight. A wrong prediction locates a failed decision; it does not show that occupancy caused the error.
+The intervals describe variation among paired blocks within one acquisition; the four-case repeat tests stability near the margin, not reproducibility across days or hosts (Section 5.5). Registers and shared memory describe assigned resources, and management telemetry places a run in device context @smi, but neither shows active warps or cache-level traffic. Those claims need performance counters @nsight. A wrong prediction locates a failed decision; it does not show that occupancy caused the error.
 
 == What the split-favored region changes
 
-We read the stress family as changing what the grid's negative result means. Within the 72 original
-configurations the default's choice cannot be improved because the producer kernel is the
-same in both partitions; the split candidate differs only by a launch and a handoff. The
-family shows that this invariance belongs to those templates, not to fusion: when the
-consumer adds enough loads to the same kernel, the producer's launch configuration
-changes, and the split candidate can be faster by a practical margin (@sec-cliff).
+We read the stress family as changing what the grid's negative result means. The 72-case
+invariance belongs to templates whose producer schedule does not change, not to fusion.
+When the consumer adds enough loads to the fused kernel, the producer's launch
+configuration changes, and the split candidate can be faster by a practical margin
+(@sec-cliff).
 
-The region is also a caution for the cost model. The static occupancy difference is zero
-for eight of its ten split-favored configurations and positive for one fusion-favored
-configuration; the sign follows the epilogue's coupling to the reduction tile. A predictor
-that uses only launch count, logical bytes and occupancy therefore cannot locate the
-region. Its success on the original grid reflects the absence of such cases rather than
-the adequacy of the features.
-
-Finally, the region is narrow. The same family favors fusion at 256 rows, at 2048 rows
-and above, at the shorter and longer reduction lengths, and in FP16. Reporting the
-boundary requires the four axes, not a claim that fusion is generally harmful.
+The region is also a caution for the cost model. A predictor that uses only launch count,
+logical bytes and occupancy cannot locate it: the occupancy difference does not track the
+sign (Section 4.2), and its success on the original grid reflects the absence of such
+cases rather than the adequacy of the features.
 
 #pagebreak()
 = Conclusion
 
 For these single-consumer TorchInductor fragments, eliminating a verified intermediate generally helped under direct submission, and replay reduced which advantages were large enough to resolve. The decrease in absolute benefit occurred in all 20 RTX 3090 follow-up configurations. For a large FP32 pointwise vector on the same device, fusion retained about 160 µs of benefit in either mode, so per-call microseconds and relative savings must be reported together.
 
-The two-term predictor matched the default on the measured targets, and the resource term added two clear errors on RTX 4090 replay while reducing coverage in the follow-up. On the original grid there is no measured decision benefit to replacing the default with either predictor. The stress family supplies the missing case: the resource term is zero for eight of its ten split-favored configurations and positive for one fusion-favored one, so neither the default nor the three-term model localizes the region. A legal local fusion can therefore lose by a practical margin, and the measured region bounds where a local decision can differ from the default. How often such epilogue coupling occurs in model graphs remains open.
+The two-term predictor matched the default on the measured targets, and the resource term added two clear errors on RTX 4090 replay while reducing coverage in the follow-up. On the original grid there is no measured decision benefit to replacing the default with either predictor. The stress family supplies the missing case: the three-term model does not localize the region. A legal local fusion can therefore lose by a practical margin, and the measured region bounds where a local decision can differ from the default. How often such epilogue coupling occurs in model graphs remains open.
 
 Three extensions would test the boundary further: a second family whose consumer changes the producer's tile without adding loads, hardware counters that separate memory traffic from scheduling, and a device with a different reduction heuristic.
 
