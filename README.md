@@ -81,7 +81,7 @@ docs/            接口、产物口径、3090 手册
 
 RTX 4060 Laptop 上的冒烟仅用于验证流程。正式 run 的 GPU 型号、驱动和设备 UUID 写入 `run.json`。
 
-## 审阅发现（待处理）：当前 `split` 无法产生负对照，“边界”未被观测
+## 审阅发现：72-case 语料无法产生负对照；边界在 stress family 中被观测到
 
 本节记录 2026-11-26 的审阅结论。它不改变 `runs/` 下的原始数据，但直接影响论文能主张的结论。
 
@@ -139,15 +139,35 @@ RTX 4060 Laptop 上的冒烟仅用于验证流程。正式 run 的 GPU 型号、
   30 block 配对与 `summary.json`）；复现脚本 `scripts/run_probe_all.sh`、
   `scripts/run_probe.sh`、`scripts/probe_independent.py`。
 
-### 待办：只剩第 2 条
+### 第 2 条（资源悬崖）：已在 4090 上测到 split 占优区
 
 1. ~~新增 `split_independent` 候选~~：已否定，见上。
-2. **保留同图 split，构造 register/occupancy cliff**：让 fused kernel 出现
-   `n_spills > 0` 或 occupancy 低于 split 的 producer。例如 16–32 个串联 elementwise /
-   多临时量的 epilogue。现有 72 case 与 20 个补采用例的 0 spill、fused producer
-   occupancy 从不低于 split，加形状无法制造该悬崖；这需要新模板与新语料。
+2. **保留同图 split，构造资源悬崖**：已用新的 stress family 实现，详见
+   [docs/cliff-probe-4090.md](docs/cliff-probe-4090.md)。
 
-若两条都试过仍无 split，论文应改为“融合占优区 + 负结果”，并删除边界、模型排名与跨卡迁移的主张（此时迁移预测的是常数）。继续增加 N/M/K/dtype/transpose 不会改变结论：3090 补采已是 20/20 fuse。
+家族：`t = sum(x, 1)`；`y = t[:, None] * (x + Σ_{s=1..B} roll(x, s, 1))`，`B` 个独立
+load 构成 stencil epilogue。同图 split 仍是 `realize(t)` + 调度器否决。
+
+结果（24 个配置，30/60 配对 block，正反顺序交替，bootstrap 95% CI）：
+**10 个 split、13 个 fuse、1 个 uncertain**。占优区为 **M ∈ {512, 1024}、K = 8192、
+fp32、B ≥ 3**，最深处 `M=1024, B=8`：split 38.42 µs vs fused 66.42 µs，**−28.0 µs
+（−72.9%）**。区间外融合仍然领先，`M=4096, B=5` 时 +119.6 µs（fused 快 28.7%）。
+
+机制：fused 的 epilogue 继承归约的 launch config（`XBLOCK=1`、16 warps、grid=M），
+而 split 的消费者是独立的点式 kernel（`XBLOCK=1024`、4 warps、grid=M·K/1024）；
+逐 kernel 计时显示 epilogue 在 fused 里每个 load 约 5 µs，在 split 里约 0.9 µs。
+B ≥ 8 时 `num_load + num_reduction ≥ 10` 再触发 `_reduction_configs` 的
+`register_intensive`，把 `RBLOCK` 从 2048 降到 1024/512、warps 上限从 16 降到 8，
+而 split 的 producer 始终保留 2048/16。
+
+边界是**非单调**的：M=256 由 launch 成本主导回到 fuse，M ≥ 2048 由行局部性/网格
+规模回到 fuse；K=4096 未判定，K=2048 与 fp16 同一 (M,K) 均为 fuse。因此论文不能主张
+“融合普遍有害”，只能主张“在 epilogue 并行度被归约 tile 绑定的区域，融合会亏”，并
+把该区域的四条边界（M、K、dtype、B）写清楚。
+
+产物：`runs/cliff-20261128T090000Z/`（`summary.json` + 逐配置 json、编译证据、逐 kernel
+profiler 时间）；复现：`scripts/run_cliff.sh`、`scripts/probe_cliff.py`、
+`scripts/probe_cliff_paired.py`、`scripts/cliff_summary.py`。
 
 ## RTX 3090 实测结果（2026-11-26）
 

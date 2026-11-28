@@ -164,3 +164,27 @@ fb-local-4060-20261128.tar.zst.sha256
 `cand-pilot-*`、`pilot-adapter-*`、`ext-gpu-test*`、`kernel-guard-test`、`manifest-20261125`、
 `synthetic-c-sample`，以及 `analysis/out/synthetic-fixture-20261125`。排除 `*/cache/` 与
 `*.log`。这些 run 只用于流程验证与审阅对照，不进入正式统计。
+
+## 融合资源悬崖（RTX 4090，2026-11-28）
+
+```
+fb-cliff-4090-20261128.tar.zst              67 KiB（707 个条目）
+fb-cliff-4090-20261128.tar.zst.sha256
+```
+
+含 `runs/cliff-20261128T090000Z`：24 个配置的 fused/split 编译证据（`output_code.py`、
+逐 kernel 资源、`num_load`/`num_reduction`）、30/60 个配对 block 的 A/B JSON、逐 kernel
+`torch.profiler` 时间与 `summary.json`。排除 `*/cache/`。
+
+设备：`NVIDIA GeForce RTX 4090`（128 SM、72 MiB L2），`torch 2.6.0+cu124`、
+`triton 3.2.0`。家族、协议、24 行结果表与机制见
+[docs/cliff-probe-4090.md](../docs/cliff-probe-4090.md)；复现：
+`PYTHON=/path/to/venv/bin/python bash scripts/run_cliff.sh`。
+
+同目录的 `cliff-4090-results.csv` 是 24 行扁平表（两侧时间、$B$、相对收益与 CI、标签、
+两侧 kernel 的 block/warps/regs/occupancy、`num_load`、guard/realize 状态），便于不
+解包直接复核。
+
+结论：10 个 `split`、13 个 `fuse`、1 个 `uncertain`。占优区为 M ∈ {512, 1024}、
+K = 8192、fp32、B ≥ 3；最深处 `M=1024, B=8` 的 split 为 38.42 µs 对 fused 66.42 µs
+（−28.0 µs，−72.9%）。区间外融合仍领先（`M=4096, B=5`：+119.6 µs）。
